@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List, Tuple
 
 from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
@@ -18,27 +19,33 @@ def find_pdb_files(folder: Path) -> List[Path]:
 
 
 def extract_delg(page_text: str) -> str:
-    match = re.search(
-        r"Predicted\s+binding\s+affinity\s*\(\s*[Δ]\s*G\s*\)\s*:\s*([^\n\r]+)",
-        page_text,
-        flags=re.IGNORECASE,
-    )
-    if not match:
-        return "NOT_FOUND"
-    return re.sub(r"\s+", " ", match.group(1)).strip()
+    # Expected label on result page: Predicted binding affinity (∆G):
+    patterns = [
+        r"Predicted\s+binding\s+affinity\s*\(\s*[∆Δ]\s*G\s*\)\s*:\s*([^\n\r]+)",
+        r"Predicted\s+binding\s+affinity\s*\(\s*&Delta;\s*G\s*\)\s*:\s*([^\n\r]+)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, page_text, flags=re.IGNORECASE)
+        if match:
+            return re.sub(r"\s+", " ", match.group(1)).strip()
+    return "NOT_FOUND"
 
 
-def wait_for_results(driver: webdriver.Chrome, timeout: int = 90) -> None:
+def wait_for_results(driver: webdriver.Chrome, timeout: int = 180) -> None:
     wait = WebDriverWait(driver, timeout)
-    wait.until(lambda d: "result" in d.current_url.lower() or "prediction" in d.page_source.lower())
-    wait.until(
-        lambda d: re.search(
-            r"Predicted\s+binding\s+affinity\s*\(\s*[Δ]\s*G\s*\)\s*:",
-            d.page_source,
+    wait.until(lambda d: "result" in d.current_url.lower() or "prediction" in d.current_url.lower())
+
+    def result_or_error_present(d: webdriver.Chrome) -> bool:
+        text = d.find_element(By.TAG_NAME, "body").text
+        has_delg = re.search(
+            r"Predicted\s+binding\s+affinity\s*\(\s*[∆Δ]\s*G\s*\)\s*:",
+            text,
             re.IGNORECASE,
         )
-        is not None
-    )
+        has_error = re.search(r"error|failed|invalid|please\s+check", text, re.IGNORECASE)
+        return bool(has_delg or has_error)
+
+    wait.until(result_or_error_present)
 
 
 def locate_upload_input(driver: webdriver.Chrome) -> object:
@@ -80,7 +87,21 @@ def locate_run_button(driver: webdriver.Chrome) -> object:
     raise RuntimeError("Could not find RUN PREDICTION button on the page.")
 
 
-def run_prediction(driver: webdriver.Chrome, pdb_file: Path, verbose: bool = False) -> Tuple[str, str]:
+def save_debug_artifacts(driver: webdriver.Chrome, pdb_id: str, debug_dir: Path) -> Tuple[Path, Path]:
+    debug_dir.mkdir(parents=True, exist_ok=True)
+    html_path = debug_dir / f"{pdb_id}_debug.html"
+    png_path = debug_dir / f"{pdb_id}_debug.png"
+    html_path.write_text(driver.page_source, encoding="utf-8")
+    driver.save_screenshot(str(png_path))
+    return html_path, png_path
+
+
+def run_prediction(
+    driver: webdriver.Chrome,
+    pdb_file: Path,
+    timeout: int,
+    verbose: bool = False,
+) -> Tuple[str, str]:
     if verbose:
         print(f"[INFO] Opening page for {pdb_file.name}")
     driver.get(URL)
@@ -95,7 +116,7 @@ def run_prediction(driver: webdriver.Chrome, pdb_file: Path, verbose: bool = Fal
     if verbose:
         print("[INFO] Clicked RUN PREDICTION")
 
-    wait_for_results(driver)
+    wait_for_results(driver, timeout=timeout)
 
     body_text = driver.find_element(By.TAG_NAME, "body").text
     del_g = extract_delg(body_text)
@@ -123,6 +144,12 @@ def main() -> None:
     parser.add_argument("--output", default="prediction_output.csv", help="Output csv file path.")
     parser.add_argument("--headless", action="store_true", help="Run browser in headless mode.")
     parser.add_argument("--verbose", action="store_true", help="Print verbose logs.")
+    parser.add_argument("--timeout", type=int, default=180, help="Result wait timeout in seconds.")
+    parser.add_argument(
+        "--debug-dir",
+        default="debug_artifacts",
+        help="Directory to save page HTML/screenshot on failures.",
+    )
     args = parser.parse_args()
 
     folder = Path(args.pdb_folder)
@@ -138,14 +165,33 @@ def main() -> None:
 
     results = []
     driver = create_driver(headless=args.headless)
+    debug_dir = Path(args.debug_dir)
     try:
         for pdb_file in pdb_files:
             try:
-                results.append(run_prediction(driver, pdb_file, verbose=args.verbose))
+                results.append(
+                    run_prediction(
+                        driver,
+                        pdb_file,
+                        timeout=args.timeout,
+                        verbose=args.verbose,
+                    )
+                )
             except Exception as exc:
+                pdb_id = pdb_file.stem
+                html_path, png_path = save_debug_artifacts(driver, pdb_id, debug_dir)
+                error_text = f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
                 if args.verbose:
-                    print(f"[ERROR] {pdb_file.stem}: {exc}")
-                results.append((pdb_file.stem, f"ERROR: {exc}"))
+                    print(f"[ERROR] {pdb_id}: {error_text}")
+                    print(f"[ERROR] URL at failure: {driver.current_url}")
+                    if isinstance(exc, TimeoutException):
+                        print(
+                            "[HINT] Timeout waiting for result text. "
+                            "Try larger --timeout or run without --headless to inspect UI behavior."
+                        )
+                    print(f"[DEBUG] Saved HTML: {html_path}")
+                    print(f"[DEBUG] Saved screenshot: {png_path}")
+                results.append((pdb_id, f"ERROR: {error_text}"))
     finally:
         driver.quit()
 
