@@ -81,3 +81,37 @@ Optional login flags for PRODIGY:
 ```bash
 python scrape_prodigy.py --pdb-folder /path/to/pdbs --output out.csv --email you@example.com --password 'secret'
 ```
+
+
+---
+
+### 4) Area Affinity scraper
+
+Script: `scrape_area_affinity.py`
+
+Targets:
+`https://affinity.cuhk.edu.cn/`
+
+For each `.pdb` in a folder, it:
+- uploads the PDB file,
+- detects two chain IDs from the structure and fills:
+  - **Chain IDs of binding partner 1**
+  - **Chain IDs of binding partner 2**
+- clicks **RUN**,
+- reads result row values for:
+  - `Predicted binding affinity (log(K))`
+  - `Predicted binding energy (kcal/mol)`
+- writes CSV columns in this order:
+  1. `pdb_id`
+  2. `Predicted binding affinity (log(K))`
+  3. `Predicted binding energy (kcal/mol)`
+
+## Run Area Affinity scraper
+
+```bash
+python scrape_area_affinity.py \
+  --pdb-folder /path/to/pdbs \
+  --output /path/to/output.csv \
+  --headless \
+  --verbose
+```
