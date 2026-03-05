@@ -177,27 +177,45 @@ def parse_results(driver: webdriver.Chrome, timeout: int = 180) -> Tuple[str, st
         or "Kd" in d.page_source
     )
 
-    page_text = driver.find_element(By.TAG_NAME, "body").text
+    # Prefer table immediately following heading "Binding affinity and Kd prediction"
+    section_rows = driver.find_elements(
+        By.XPATH,
+        (
+            "//*[contains(normalize-space(.), 'Binding affinity and Kd prediction')]"
+            "/following::table[1]//tr[td]"
+        ),
+    )
+    for row in section_rows:
+        values = [c.text.strip() for c in row.find_elements(By.XPATH, "./td")]
+        if len(values) >= 3:
+            delg_candidate = values[1]
+            kd_candidate = values[2]
+            if "Del G" not in delg_candidate and "Kd" not in kd_candidate:
+                return delg_candidate, kd_candidate
 
-    delg_match = re.search(r"Del\s*G\s*\(Kcalmol-1\)\s*([-+]?\d+(?:\.\d+)?)", page_text, re.IGNORECASE)
-    kd_match = re.search(r"\bKd\b\s*([\d\.eE+-]+\s*[a-zA-Zµμnmpf]*)", page_text, re.IGNORECASE)
+    # Fallback: any table with header row containing Del G and Kd, then pick next data row
+    tables = driver.find_elements(By.XPATH, "//table")
+    for table in tables:
+        header_text = table.text
+        if "Del G" not in header_text or "Kd" not in header_text:
+            continue
+        rows = table.find_elements(By.XPATH, ".//tr[td]")
+        for row in rows:
+            values = [c.text.strip() for c in row.find_elements(By.XPATH, "./td")]
+            if len(values) >= 3:
+                delg_candidate = values[1]
+                kd_candidate = values[2]
+                if "Del G" in delg_candidate or "Kd" in kd_candidate:
+                    continue
+                return delg_candidate, kd_candidate
+
+    # Last fallback: regex for numeric values near Del G and Kd labels
+    page_text = driver.find_element(By.TAG_NAME, "body").text
+    delg_match = re.search(r"Del\s*G[^\n\r]*\n\s*([-+]?\d+(?:\.\d+)?)", page_text, re.IGNORECASE)
+    kd_match = re.search(r"\bKd\b[^\n\r]*\n\s*([\d\.eE+-]+(?:\s*[a-zA-ZµμnmpfM]*)?)", page_text, re.IGNORECASE)
 
     delg = delg_match.group(1).strip() if delg_match else "NOT_FOUND"
     kd = kd_match.group(1).strip() if kd_match else "NOT_FOUND"
-
-    # Fallback: parse first data row under headers if regex missed
-    if delg == "NOT_FOUND" or kd == "NOT_FOUND":
-        rows = driver.find_elements(By.XPATH, "//table//tr")
-        for row in rows:
-            cells = row.find_elements(By.XPATH, "./th|./td")
-            values = [c.text.strip() for c in cells if c.text.strip()]
-            if len(values) >= 3 and not any("Del G" in v for v in values):
-                if delg == "NOT_FOUND":
-                    delg = values[1]
-                if kd == "NOT_FOUND":
-                    kd = values[2]
-                break
-
     return delg, kd
 
 

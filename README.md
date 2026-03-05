@@ -24,7 +24,7 @@ For each `.pdb` in a folder, it:
 - sets **Temperature** to `25`,
 - sets **Job ID** to the PDB file name,
 - clicks **Submit PRODIGY**,
-- reads the results table under **Binding affinity and Kd prediction**,
+- reads the results table under **Binding affinity and Kd prediction** and captures values from the first **data row** (not the header),
 - writes CSV columns in this order: `pdb_id,Del G,Kd`.
 
 The script supports login with email/password (prompted if not passed through args).
