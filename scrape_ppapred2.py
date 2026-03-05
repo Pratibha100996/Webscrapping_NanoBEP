@@ -9,7 +9,7 @@ from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.ui import Select, WebDriverWait
 
 URL = "https://www.iitm.ac.in/bioinfo/PPA_Pred/prediction.html"
 
@@ -95,6 +95,39 @@ def click_or_submit(driver: webdriver.Chrome) -> None:
     )
 
 
+
+
+def select_antigen_antibody(driver: webdriver.Chrome) -> None:
+    # Select the interaction type dropdown as Antigen-Antibody when present.
+    candidates = [
+        "//select[contains(@name,'type') or contains(@id,'type')]",
+        "//select[contains(@name,'interaction') or contains(@id,'interaction')]",
+        "//label[contains(.,'Select') or contains(.,'Type')]/following::select[1]",
+        "(//select)[1]",
+    ]
+
+    for xp in candidates:
+        elems = driver.find_elements(By.XPATH, xp)
+        if not elems:
+            continue
+        select_elem = elems[0]
+        sel = Select(select_elem)
+
+        # Try by visible text first
+        for text in ["Antigen-Antibody", "Antigen - Antibody", "Antigen Antibody"]:
+            try:
+                sel.select_by_visible_text(text)
+                return
+            except Exception:
+                pass
+
+        # Fallback: choose any option containing both words
+        for opt in sel.options:
+            t = opt.text.strip().lower()
+            if "antigen" in t and "antibody" in t:
+                opt.click()
+                return
+
 def parse_output_text(text: str) -> Tuple[str, str]:
     dg_patterns = [
         r"Predicted\s+value\s+of\s+Delta\s*G\s*\(binding\s+free\s+energy\)\s*is\s*([-+]?\d+(?:\.\d+)?)",
@@ -154,6 +187,8 @@ def run_prediction(driver: webdriver.Chrome, fasta_file: Path, timeout: int, ver
         print(f"[INFO] {file_id}: using FASTA entries {h1} and {h2}")
 
     driver.get(URL)
+
+    select_antigen_antibody(driver)
 
     protein1 = find_first(driver, [(By.XPATH, "(//textarea)[1]")])
     protein2 = find_first(driver, [(By.XPATH, "(//textarea)[2]")])

@@ -40,6 +40,7 @@ Targets:
 
 For each FASTA file in a folder, it:
 - reads the **first two FASTA entries** from the file,
+- selects **Antigen-Antibody** from the input-page dropdown,
 - pastes the first entry into **Protein1** and the second entry into **Protein 2**,
 - clicks **Submit**,
 - captures from results text:
