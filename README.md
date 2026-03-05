@@ -29,6 +29,25 @@ For each `.pdb` in a folder, it:
 
 The script supports login with email/password (prompted if not passed through args).
 
+---
+
+### 3) PPA_Pred2 scraper
+
+Script: `scrape_ppapred2.py`
+
+Targets:
+`https://www.iitm.ac.in/bioinfo/PPA_Pred/prediction.html`
+
+For each `.pdb` in a folder, it:
+- reads two chain sequences from the PDB,
+- creates FASTA entries `>pdbid_chain` for each chain,
+- pastes chain 1 FASTA in **Protein1** and chain 2 FASTA in **Protein 2**,
+- clicks **Submit**,
+- captures from results text:
+  - `Predicted value of Delta G (binding free energy) is ... kcal/mol`
+  - `Predicted value of Kd (dissociation constant) is ... M`
+- writes CSV columns in this order: `pdb_id,Del G,Kd`.
+
 ## Install
 
 ```bash
@@ -45,7 +64,17 @@ python scrape_prodigy.py \
   --verbose
 ```
 
-Optional login flags:
+## Run PPA_Pred2 scraper
+
+```bash
+python scrape_ppapred2.py \
+  --pdb-folder /path/to/pdbs \
+  --output /path/to/output.csv \
+  --headless \
+  --verbose
+```
+
+Optional login flags for PRODIGY:
 
 ```bash
 python scrape_prodigy.py --pdb-folder /path/to/pdbs --output out.csv --email you@example.com --password 'secret'
