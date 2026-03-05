@@ -1,5 +1,5 @@
 import argparse
-import os
+import csv
 import re
 from pathlib import Path
 from typing import List, Tuple
@@ -105,7 +105,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Upload PDB file(s) to csm_ab and extract Kd and Del G values.")
     parser.add_argument("--pdb-folder", required=True, help="Folder containing .pdb file(s).")
-    parser.add_argument("--output", default="prediction_output.txt", help="Output txt file path.")
+    parser.add_argument("--output", default="prediction_output.csv", help="Output csv file path.")
     parser.add_argument("--headless", action="store_true", help="Run browser in headless mode.")
     args = parser.parse_args()
 
@@ -130,12 +130,11 @@ def main() -> None:
 
     out_path = Path(args.output)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    with out_path.open("w", encoding="utf-8") as f:
+    with out_path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["pdb_name", "Del G", "Kd"])
         for pdb_id, kd, del_g in results:
-            f.write(f"PDB_ID: {pdb_id}\n")
-            f.write(f"Kd: {kd}\n")
-            f.write(f"Del G: {del_g}\n")
-            f.write("-" * 40 + "\n")
+            writer.writerow([pdb_id, del_g, kd])
 
     print(f"Saved output to: {out_path.resolve()}")
 
