@@ -169,52 +169,76 @@ def submit_job(driver: webdriver.Chrome, pdb_file: Path, chain1: str, chain2: st
         print(f"[INFO] Submitted job for {pdb_file.stem} (chains {chain1}/{chain2})")
 
 
+def _norm_label(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", text.lower().replace("Δ", "d").replace("∆", "d"))
+
+
 def parse_results(driver: webdriver.Chrome, timeout: int = 180) -> Tuple[str, str]:
     wait = WebDriverWait(driver, timeout)
-    wait.until(
-        lambda d: "Binding affinity and Kd prediction" in d.page_source
-        or "Del G" in d.page_source
-        or "Kd" in d.page_source
-    )
+    wait.until(lambda d: "binding affinity" in d.page_source.lower() or "kd" in d.page_source.lower())
 
-    # Prefer table immediately following heading "Binding affinity and Kd prediction"
-    section_rows = driver.find_elements(
-        By.XPATH,
-        (
-            "//*[contains(normalize-space(.), 'Binding affinity and Kd prediction')]"
-            "/following::table[1]//tr[td]"
-        ),
-    )
-    for row in section_rows:
-        values = [c.text.strip() for c in row.find_elements(By.XPATH, "./td")]
-        if len(values) >= 3:
-            delg_candidate = values[1]
-            kd_candidate = values[2]
-            if "Del G" not in delg_candidate and "Kd" not in kd_candidate:
-                return delg_candidate, kd_candidate
+    def parse_from_table(table) -> Tuple[str, str]:
+        header_idx_delg = None
+        header_idx_kd = None
+        rows = table.find_elements(By.XPATH, ".//tr")
 
-    # Fallback: any table with header row containing Del G and Kd, then pick next data row
-    tables = driver.find_elements(By.XPATH, "//table")
-    for table in tables:
-        header_text = table.text
-        if "Del G" not in header_text or "Kd" not in header_text:
-            continue
-        rows = table.find_elements(By.XPATH, ".//tr[td]")
         for row in rows:
-            values = [c.text.strip() for c in row.find_elements(By.XPATH, "./td")]
-            if len(values) >= 3:
-                delg_candidate = values[1]
-                kd_candidate = values[2]
-                if "Del G" in delg_candidate or "Kd" in kd_candidate:
-                    continue
-                return delg_candidate, kd_candidate
+            cells = row.find_elements(By.XPATH, "./th|./td")
+            values = [c.text.strip() for c in cells]
+            if not values:
+                continue
 
-    # Last fallback: regex for numeric values near Del G and Kd labels
+            # Header detection by symbols/labels (e.g., ΔG, ∆G, Kd, K with subscript d rendered text)
+            lowered = [_norm_label(v) for v in values]
+            if any("delg" in v or "dg" in v for v in lowered) or any(v == "kd" or v.endswith("kd") for v in lowered):
+                for i, lv in enumerate(lowered):
+                    if header_idx_delg is None and ("delg" in lv or "dg" in lv):
+                        header_idx_delg = i
+                    if header_idx_kd is None and (lv == "kd" or lv.endswith("kd") or ("k" in lv and "d" in lv)):
+                        header_idx_kd = i
+                continue
+
+            data_cells = [c.text.strip() for c in row.find_elements(By.XPATH, "./td") if c.text.strip()]
+            if not data_cells:
+                continue
+
+            # Use header-aligned indices when known
+            if header_idx_delg is not None and header_idx_kd is not None:
+                if len(data_cells) > max(header_idx_delg, header_idx_kd):
+                    delg_val = data_cells[header_idx_delg]
+                    kd_val = data_cells[header_idx_kd]
+                    if delg_val and kd_val:
+                        return delg_val, kd_val
+
+            # Fallback: common layout -> first col temperature, second ΔG, third Kd
+            if len(data_cells) >= 3:
+                return data_cells[1], data_cells[2]
+            if len(data_cells) == 2:
+                return data_cells[0], data_cells[1]
+
+        return "NOT_FOUND", "NOT_FOUND"
+
+    # 1) Prefer table right after Binding affinity heading
+    section_tables = driver.find_elements(
+        By.XPATH,
+        "//*[contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'binding affinity') and contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'prediction')]/following::table[1]",
+    )
+    for table in section_tables:
+        delg, kd = parse_from_table(table)
+        if delg != "NOT_FOUND" and kd != "NOT_FOUND":
+            return delg, kd
+
+    # 2) Try all tables on page
+    for table in driver.find_elements(By.XPATH, "//table"):
+        delg, kd = parse_from_table(table)
+        if delg != "NOT_FOUND" and kd != "NOT_FOUND":
+            return delg, kd
+
+    # 3) Last fallback: pull first negative/float as ΔG and scientific/unit-bearing as Kd from nearby text
     page_text = driver.find_element(By.TAG_NAME, "body").text
-    delg_match = re.search(r"Del\s*G[^\n\r]*\n\s*([-+]?\d+(?:\.\d+)?)", page_text, re.IGNORECASE)
-    kd_match = re.search(r"\bKd\b[^\n\r]*\n\s*([\d\.eE+-]+(?:\s*[a-zA-ZµμnmpfM]*)?)", page_text, re.IGNORECASE)
-
-    delg = delg_match.group(1).strip() if delg_match else "NOT_FOUND"
+    delg_match = re.search(r"([-+]?[0-9]+(?:\.[0-9]+)?)", page_text)
+    kd_match = re.search(r"([0-9]+(?:\.[0-9]+)?(?:e[-+]?\d+)?\s*[munpfµμ]?\s*[mM])", page_text, re.IGNORECASE)
+    delg = delg_match.group(1) if delg_match else "NOT_FOUND"
     kd = kd_match.group(1).strip() if kd_match else "NOT_FOUND"
     return delg, kd
 
