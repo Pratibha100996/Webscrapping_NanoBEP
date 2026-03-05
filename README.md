@@ -38,10 +38,9 @@ Script: `scrape_ppapred2.py`
 Targets:
 `https://www.iitm.ac.in/bioinfo/PPA_Pred/prediction.html`
 
-For each `.pdb` in a folder, it:
-- reads two chain sequences from the PDB,
-- creates FASTA entries `>pdbid_chain` for each chain,
-- pastes chain 1 FASTA in **Protein1** and chain 2 FASTA in **Protein 2**,
+For each FASTA file in a folder, it:
+- reads the **first two FASTA entries** from the file,
+- pastes the first entry into **Protein1** and the second entry into **Protein 2**,
 - clicks **Submit**,
 - captures from results text:
   - `Predicted value of Delta G (binding free energy) is ... kcal/mol`
@@ -68,7 +67,7 @@ python scrape_prodigy.py \
 
 ```bash
 python scrape_ppapred2.py \
-  --pdb-folder /path/to/pdbs \
+  --fasta-folder /path/to/fasta_files \
   --output /path/to/output.csv \
   --headless \
   --verbose \
