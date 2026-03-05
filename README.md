@@ -71,7 +71,9 @@ python scrape_ppapred2.py \
   --pdb-folder /path/to/pdbs \
   --output /path/to/output.csv \
   --headless \
-  --verbose
+  --verbose \
+  --timeout 240 \
+  --debug-dir debug_artifacts
 ```
 
 Optional login flags for PRODIGY:

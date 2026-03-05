@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 
 from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
@@ -27,22 +28,16 @@ def find_pdb_files(folder: Path) -> List[Path]:
 
 def extract_two_chain_fastas(pdb_file: Path) -> Tuple[Tuple[str, str], Tuple[str, str]]:
     chains: Dict[str, List[Tuple[Tuple[str, str, str], str]]] = {}
-
     with pdb_file.open("r", encoding="utf-8", errors="ignore") as f:
         for line in f:
-            if not line.startswith("ATOM"):
+            if not line.startswith("ATOM") or len(line) < 27:
                 continue
-            if len(line) < 27:
-                continue
-
             resname = line[17:20].strip().upper()
             chain_id = line[21].strip()
             resseq = line[22:26].strip()
             icode = line[26].strip()
-
             if not chain_id:
                 continue
-
             aa = AA3_TO_1.get(resname, "X")
             residue_key = (chain_id, resseq, icode)
             chains.setdefault(chain_id, []).append((residue_key, aa))
@@ -50,10 +45,8 @@ def extract_two_chain_fastas(pdb_file: Path) -> Tuple[Tuple[str, str], Tuple[str
     if len(chains) < 2:
         raise ValueError(f"Need at least 2 chains in {pdb_file.name}; found {len(chains)}")
 
-    chain_ids = sorted(chains.keys())[:2]
     chain_fastas: List[Tuple[str, str]] = []
-
-    for chain_id in chain_ids:
+    for chain_id in sorted(chains.keys())[:2]:
         seq: List[str] = []
         seen_res = set()
         for residue_key, aa in chains[chain_id]:
@@ -61,11 +54,9 @@ def extract_two_chain_fastas(pdb_file: Path) -> Tuple[Tuple[str, str], Tuple[str
                 continue
             seen_res.add(residue_key)
             seq.append(aa)
-        sequence = "".join(seq)
-        if not sequence:
+        if not seq:
             raise ValueError(f"Chain {chain_id} has empty sequence in {pdb_file.name}")
-        header = f">{pdb_file.stem}_{chain_id}"
-        chain_fastas.append((header, sequence))
+        chain_fastas.append((f">{pdb_file.stem}_{chain_id}", "".join(seq)))
 
     return chain_fastas[0], chain_fastas[1]
 
@@ -90,36 +81,90 @@ def find_first(driver: webdriver.Chrome, locators: List[Tuple[str, str]], timeou
     raise RuntimeError(f"Could not find element with locators: {locators}")
 
 
-def click_first(driver: webdriver.Chrome, locators: List[Tuple[str, str]], timeout: int = 30) -> None:
-    wait = WebDriverWait(driver, timeout)
-    for by, sel in locators:
+def click_or_submit(driver: webdriver.Chrome) -> None:
+    # Try explicit submit controls first
+    candidates = [
+        (By.XPATH, "//input[@type='submit']"),
+        (By.XPATH, "//button[contains(translate(., 'abcdefghijklmnopqrstuvwxyz', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'),'SUBMIT')]"),
+    ]
+    for by, sel in candidates:
         try:
-            elem = wait.until(EC.element_to_be_clickable((by, sel)))
+            elem = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((by, sel)))
             elem.click()
             return
         except Exception:
             continue
-    raise RuntimeError(f"Could not click element with locators: {locators}")
+
+    # Fallback: submit nearest form using JS
+    driver.execute_script(
+        """
+        const t1 = document.querySelectorAll('textarea');
+        if (t1.length) {
+          const form = t1[0].closest('form');
+          if (form) { form.submit(); return true; }
+        }
+        return false;
+        """
+    )
 
 
 def parse_output_text(text: str) -> Tuple[str, str]:
-    dg_match = re.search(
-        r"Predicted\s+value\s+of\s+Delta\s*G\s*\(binding\s+free\s+energy\)\s+is\s+([-+]?\d+(?:\.\d+)?)\s*kcal/mol",
-        text,
-        re.IGNORECASE,
-    )
-    kd_match = re.search(
-        r"Predicted\s+value\s+of\s+Kd\s*\(dissociation\s+constant\)\s+is\s+([\d.eE+-]+)\s*M",
-        text,
-        re.IGNORECASE,
-    )
+    dg_patterns = [
+        r"Predicted\s+value\s+of\s+Delta\s*G\s*\(binding\s+free\s+energy\)\s*is\s*([-+]?\d+(?:\.\d+)?)",
+        r"Delta\s*G[^\n\r]*?is\s*([-+]?\d+(?:\.\d+)?)",
+    ]
+    kd_patterns = [
+        r"Predicted\s+value\s+of\s+K\s*d\s*\(dissociation\s+constant\)\s*is\s*([\d.eE+-]+)",
+        r"\bK\s*d\b[^\n\r]*?is\s*([\d.eE+-]+)",
+    ]
 
-    del_g = dg_match.group(1).strip() if dg_match else "NOT_FOUND"
-    kd = kd_match.group(1).strip() if kd_match else "NOT_FOUND"
+    del_g = "NOT_FOUND"
+    kd = "NOT_FOUND"
+
+    for p in dg_patterns:
+        m = re.search(p, text, re.IGNORECASE)
+        if m:
+            del_g = m.group(1).strip()
+            break
+
+    for p in kd_patterns:
+        m = re.search(p, text, re.IGNORECASE)
+        if m:
+            kd = m.group(1).strip()
+            break
+
     return del_g, kd
 
 
-def run_prediction(driver: webdriver.Chrome, pdb_file: Path, timeout: int, verbose: bool) -> Tuple[str, str, str]:
+def wait_for_result_page(driver: webdriver.Chrome, timeout: int) -> None:
+    wait = WebDriverWait(driver, timeout)
+
+    def has_output(d: webdriver.Chrome) -> bool:
+        text = d.find_element(By.TAG_NAME, "body").text
+        return bool(
+            re.search(r"Predicted\s+value\s+of\s+Delta\s*G", text, re.IGNORECASE)
+            or re.search(r"dissociation\s+constant", text, re.IGNORECASE)
+            or re.search(r"\bOutput\b", text, re.IGNORECASE)
+        )
+
+    wait.until(has_output)
+
+
+def save_debug_artifacts(driver: webdriver.Chrome, pdb_id: str, debug_dir: Path) -> Tuple[Path, Path]:
+    debug_dir.mkdir(parents=True, exist_ok=True)
+    html_path = debug_dir / f"{pdb_id}_ppapred2_debug.html"
+    png_path = debug_dir / f"{pdb_id}_ppapred2_debug.png"
+    html_path.write_text(driver.page_source, encoding="utf-8")
+    driver.save_screenshot(str(png_path))
+    return html_path, png_path
+
+
+def run_prediction(
+    driver: webdriver.Chrome,
+    pdb_file: Path,
+    timeout: int,
+    verbose: bool,
+) -> Tuple[str, str, str]:
     (h1, seq1), (h2, seq2) = extract_two_chain_fastas(pdb_file)
     pdb_id = pdb_file.stem
 
@@ -128,38 +173,16 @@ def run_prediction(driver: webdriver.Chrome, pdb_file: Path, timeout: int, verbo
 
     driver.get(URL)
 
-    protein1 = find_first(
-        driver,
-        [
-            (By.XPATH, "//label[contains(.,'Protein1')]/following::textarea[1]"),
-            (By.XPATH, "(//textarea)[1]"),
-        ],
-    )
-    protein2 = find_first(
-        driver,
-        [
-            (By.XPATH, "//label[contains(.,'Protein 2') or contains(.,'Protein2')]/following::textarea[1]"),
-            (By.XPATH, "(//textarea)[2]"),
-        ],
-    )
+    protein1 = find_first(driver, [(By.XPATH, "(//textarea)[1]")])
+    protein2 = find_first(driver, [(By.XPATH, "(//textarea)[2]")])
 
     protein1.clear()
     protein1.send_keys(f"{h1}\n{seq1}")
     protein2.clear()
     protein2.send_keys(f"{h2}\n{seq2}")
 
-    click_first(
-        driver,
-        [
-            (By.XPATH, "//input[@type='submit']"),
-            (By.XPATH, "//button[contains(translate(., 'abcdefghijklmnopqrstuvwxyz', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'),'SUBMIT')]")
-        ],
-    )
-
-    WebDriverWait(driver, timeout).until(
-        lambda d: "Predicted value of Delta G" in d.page_source
-        or "Output" in d.page_source
-    )
+    click_or_submit(driver)
+    wait_for_result_page(driver, timeout)
 
     text = driver.find_element(By.TAG_NAME, "body").text
     del_g, kd = parse_output_text(text)
@@ -175,8 +198,9 @@ def main() -> None:
     parser.add_argument("--pdb-folder", required=True, help="Folder containing .pdb files")
     parser.add_argument("--output", default="ppapred2_output.csv", help="Output CSV path")
     parser.add_argument("--headless", action="store_true", help="Run browser in headless mode")
-    parser.add_argument("--timeout", type=int, default=180, help="Timeout for results (seconds)")
+    parser.add_argument("--timeout", type=int, default=240, help="Timeout for results (seconds)")
     parser.add_argument("--verbose", action="store_true", help="Print verbose logs")
+    parser.add_argument("--debug-dir", default="debug_artifacts", help="Directory for HTML/screenshot on errors")
     args = parser.parse_args()
 
     folder = Path(args.pdb_folder)
@@ -192,14 +216,23 @@ def main() -> None:
 
     rows: List[Tuple[str, str, str]] = []
     driver = create_driver(headless=args.headless)
+    debug_dir = Path(args.debug_dir)
     try:
         for pdb_file in pdb_files:
             try:
                 rows.append(run_prediction(driver, pdb_file, args.timeout, args.verbose))
             except Exception as exc:
+                pdb_id = pdb_file.stem
+                html_path, png_path = save_debug_artifacts(driver, pdb_id, debug_dir)
+                msg = f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
                 if args.verbose:
-                    print(f"[ERROR] {pdb_file.stem}: {type(exc).__name__}: {exc}")
-                rows.append((pdb_file.stem, f"ERROR: {type(exc).__name__}", "ERROR"))
+                    print(f"[ERROR] {pdb_id}: {msg}")
+                    print(f"[ERROR] URL at failure: {driver.current_url}")
+                    if isinstance(exc, TimeoutException):
+                        print("[HINT] Result text did not appear before timeout. Try --timeout 420 and inspect debug artifacts.")
+                    print(f"[DEBUG] Saved HTML: {html_path}")
+                    print(f"[DEBUG] Saved screenshot: {png_path}")
+                rows.append((pdb_id, f"ERROR: {msg}", "ERROR"))
     finally:
         driver.quit()
 
