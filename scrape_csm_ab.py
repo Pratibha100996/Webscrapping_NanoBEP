@@ -19,7 +19,7 @@ def find_pdb_files(folder: Path) -> List[Path]:
 
 def extract_delg(page_text: str) -> str:
     match = re.search(
-        r"Predicted\s+binding\s+affinity\s*\(\s*[∆Δ]\s*G\s*\)\s*:\s*([^\n\r]+)",
+        r"Predicted\s+binding\s+affinity\s*\(\s*[Δ]\s*G\s*\)\s*:\s*([^\n\r]+)",
         page_text,
         flags=re.IGNORECASE,
     )
@@ -33,7 +33,7 @@ def wait_for_results(driver: webdriver.Chrome, timeout: int = 90) -> None:
     wait.until(lambda d: "result" in d.current_url.lower() or "prediction" in d.page_source.lower())
     wait.until(
         lambda d: re.search(
-            r"Predicted\s+binding\s+affinity\s*\(\s*[∆Δ]\s*G\s*\)\s*:",
+            r"Predicted\s+binding\s+affinity\s*\(\s*[Δ]\s*G\s*\)\s*:",
             d.page_source,
             re.IGNORECASE,
         )
