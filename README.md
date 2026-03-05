@@ -1,14 +1,33 @@
-## csm_ab Selenium scraper
+## Selenium scrapers in this repository
 
-This script uploads `.pdb` file(s) from a folder to:
+### 1) csm_ab scraper
 
+Script: `scrape_csm_ab.py`
+
+Uploads `.pdb` files to:
 `https://biosig.lab.uq.edu.au/csm_ab/prediction`
 
-Then it clicks **RUN PREDICTION**, extracts **only Del G** from:
+Extracts `Predicted binding affinity (∆G)` and writes CSV.
 
-`Predicted binding affinity (∆G):`
+---
 
-and saves results to a `.csv` file.
+### 2) PRODIGY scraper
+
+Script: `scrape_prodigy.py`
+
+Targets:
+`https://wenmr.science.uu.nl/prodigy/`
+
+For each `.pdb` in a folder, it:
+- uploads the structure,
+- detects chain IDs from the PDB file and fills **Interactor 1** and **Interactor 2**,
+- sets **Temperature** to `25`,
+- sets **Job ID** to the PDB file name,
+- clicks **Submit PRODIGY**,
+- reads the results table under **Binding affinity and Kd prediction**,
+- writes CSV columns in this order: `pdb_id,Del G,Kd`.
+
+The script supports login with email/password (prompted if not passed through args).
 
 ## Install
 
@@ -16,40 +35,18 @@ and saves results to a `.csv` file.
 pip install -r requirements.txt
 ```
 
-## Run
+## Run PRODIGY scraper
 
 ```bash
-python scrape_csm_ab.py \
-  --pdb-folder /path/to/pdb_files \
-  --output output.csv \
+python scrape_prodigy.py \
+  --pdb-folder /path/to/pdbs \
+  --output /path/to/output.csv \
   --headless \
   --verbose
 ```
 
-## Useful options
+Optional login flags:
 
-- `--timeout 180` : seconds to wait for result page text (increase if server is slow).
-- `--debug-dir debug_artifacts` : where failure HTML + screenshot files are saved.
-
-## CSV output format
-
-Columns are written in this order:
-1. `pdb_name`
-2. `Del G`
-
-Example:
-
-```csv
-pdb_name,Del G
-example,-10.2 kcal/mol
+```bash
+python scrape_prodigy.py --pdb-folder /path/to/pdbs --output out.csv --email you@example.com --password 'secret'
 ```
-
-## If you see `[ERROR] ... Message:`
-
-That usually means Selenium raised a timeout without detailed message text.
-Run with `--verbose` and inspect files in `--debug-dir`:
-
-- `<pdb_name>_debug.html`
-- `<pdb_name>_debug.png`
-
-These show what page/error was actually returned after clicking **RUN PREDICTION**.
