@@ -20,6 +20,12 @@ def find_fasta_files(folder: Path) -> List[Path]:
 
 
 def read_first_two_fasta_entries(fasta_file: Path) -> Tuple[Tuple[str, str], Tuple[str, str]]:
+    """Read FASTA input supporting either:
+    1) two separate FASTA entries, or
+    2) one FASTA entry with chain1:chain2 sequence split by ':'
+
+    Always returns headers in requested format: >pdbid_A and >pdbid_B.
+    """
     entries: List[Tuple[str, str]] = []
     header = None
     seq_chunks: List[str] = []
@@ -40,14 +46,33 @@ def read_first_two_fasta_entries(fasta_file: Path) -> Tuple[Tuple[str, str], Tup
     if header is not None:
         entries.append((header, "".join(seq_chunks)))
 
-    if len(entries) < 2:
-        raise ValueError(f"FASTA file {fasta_file.name} must contain at least 2 sequences")
+    file_id = fasta_file.stem
 
-    h1, s1 = entries[0]
-    h2, s2 = entries[1]
-    if not s1 or not s2:
-        raise ValueError(f"First two FASTA sequences in {fasta_file.name} must be non-empty")
-    return (h1, s1), (h2, s2)
+    # Case A: two FASTA records
+    if len(entries) >= 2:
+        s1 = entries[0][1]
+        s2 = entries[1][1]
+        if not s1 or not s2:
+            raise ValueError(f"First two FASTA sequences in {fasta_file.name} must be non-empty")
+        return (f">{file_id}_A", s1), (f">{file_id}_B", s2)
+
+    # Case B: one FASTA record with chain1:chain2 sequence format
+    if len(entries) == 1:
+        full_seq = entries[0][1]
+        if ":" not in full_seq:
+            raise ValueError(
+                f"FASTA file {fasta_file.name} has one sequence; expected chain1:chain2 separated by ':'"
+            )
+        left, right = full_seq.split(":", 1)
+        s1 = left.strip()
+        s2 = right.strip()
+        if not s1 or not s2:
+            raise ValueError(
+                f"FASTA file {fasta_file.name} has ':' separator but one side is empty"
+            )
+        return (f">{file_id}_A", s1), (f">{file_id}_B", s2)
+
+    raise ValueError(f"FASTA file {fasta_file.name} does not contain valid sequence data")
 
 
 def create_driver(headless: bool = True) -> webdriver.Chrome:
@@ -98,35 +123,45 @@ def click_or_submit(driver: webdriver.Chrome) -> None:
 
 
 def select_antigen_antibody(driver: webdriver.Chrome) -> None:
-    # Select the interaction type dropdown as Antigen-Antibody when present.
-    candidates = [
-        "//select[contains(@name,'type') or contains(@id,'type')]",
-        "//select[contains(@name,'interaction') or contains(@id,'interaction')]",
-        "//label[contains(.,'Select') or contains(.,'Type')]/following::select[1]",
-        "(//select)[1]",
+    """Select Antigen-Antibody in the class dropdown under the input heading."""
+    dropdown_candidates = [
+        "//label[contains(.,'Select the class of the protein-protein complex of your interest')]/following::select[1]",
+        "//select[contains(@name,'class') or contains(@id,'class')]",
+        "//select[contains(@name,'complex') or contains(@id,'complex')]",
+        "//select[1]",
     ]
 
-    for xp in candidates:
+    select_elem = None
+    for xp in dropdown_candidates:
         elems = driver.find_elements(By.XPATH, xp)
-        if not elems:
+        if elems:
+            select_elem = elems[0]
+            break
+
+    if select_elem is None:
+        return
+
+    sel = Select(select_elem)
+
+    # Strong preference for Antigen-Antibody (handle case variations/spacing)
+    target = None
+    for opt in sel.options:
+        text = re.sub(r"\s+", " ", opt.text.strip()).lower()
+        if "antigen" in text and "antibody" in text:
+            target = opt
+            break
+
+    if target is not None:
+        sel.select_by_visible_text(target.text)
+        return
+
+    for text in ["Antigen-Antibody", "Antigen-ANtibody", "Antigen - Antibody", "Antigen Antibody"]:
+        try:
+            sel.select_by_visible_text(text)
+            return
+        except Exception:
             continue
-        select_elem = elems[0]
-        sel = Select(select_elem)
 
-        # Try by visible text first
-        for text in ["Antigen-Antibody", "Antigen - Antibody", "Antigen Antibody"]:
-            try:
-                sel.select_by_visible_text(text)
-                return
-            except Exception:
-                pass
-
-        # Fallback: choose any option containing both words
-        for opt in sel.options:
-            t = opt.text.strip().lower()
-            if "antigen" in t and "antibody" in t:
-                opt.click()
-                return
 
 def parse_output_text(text: str) -> Tuple[str, str]:
     dg_patterns = [

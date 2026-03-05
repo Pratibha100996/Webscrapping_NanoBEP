@@ -39,9 +39,9 @@ Targets:
 `https://www.iitm.ac.in/bioinfo/PPA_Pred/prediction.html`
 
 For each FASTA file in a folder, it:
-- reads the **first two FASTA entries** from the file,
+- reads FASTA input as either the first two FASTA entries, or one entry with `chain1:chain2` split by `:`,
 - selects **Antigen-Antibody** from the input-page dropdown,
-- pastes the first entry into **Protein1** and the second entry into **Protein 2**,
+- generates headers as `>pdbid_A` and `>pdbid_B`, then pastes chain 1 in **Protein1** and chain 2 in **Protein 2**,
 - clicks **Submit**,
 - captures from results text:
   - `Predicted value of Delta G (binding free energy) is ... kcal/mol`
