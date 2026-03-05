@@ -7,8 +7,8 @@ from typing import List, Tuple
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
 URL = "https://biosig.lab.uq.edu.au/csm_ab/prediction"
 
@@ -17,30 +17,28 @@ def find_pdb_files(folder: Path) -> List[Path]:
     return sorted([p for p in folder.iterdir() if p.is_file() and p.suffix.lower() == ".pdb"])
 
 
-def extract_metric(page_text: str, metric: str) -> str:
-    patterns = {
-        "kd": [
-            r"K\s*d\s*[:=]\s*([^\n\r]+)",
-            r"\bKd\b\s*([^\n\r]+)",
-        ],
-        "delg": [
-            r"(?:Δ|Del\s*|Delta\s*)?G\s*[:=]\s*([^\n\r]+)",
-            r"\bDel\s*G\b\s*([^\n\r]+)",
-        ],
-    }
-
-    for pattern in patterns[metric]:
-        match = re.search(pattern, page_text, flags=re.IGNORECASE)
-        if match:
-            return re.sub(r"\s+", " ", match.group(1)).strip()
-
-    return "NOT_FOUND"
+def extract_delg(page_text: str) -> str:
+    match = re.search(
+        r"Predicted\s+binding\s+affinity\s*\(\s*[∆Δ]\s*G\s*\)\s*:\s*([^\n\r]+)",
+        page_text,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return "NOT_FOUND"
+    return re.sub(r"\s+", " ", match.group(1)).strip()
 
 
-def wait_for_results(driver: webdriver.Chrome, timeout: int = 60) -> None:
+def wait_for_results(driver: webdriver.Chrome, timeout: int = 90) -> None:
     wait = WebDriverWait(driver, timeout)
     wait.until(lambda d: "result" in d.current_url.lower() or "prediction" in d.page_source.lower())
-    wait.until(lambda d: re.search(r"\bKd\b", d.page_source, re.IGNORECASE) or re.search(r"Del\s*G|Delta\s*G|ΔG", d.page_source, re.IGNORECASE))
+    wait.until(
+        lambda d: re.search(
+            r"Predicted\s+binding\s+affinity\s*\(\s*[∆Δ]\s*G\s*\)\s*:",
+            d.page_source,
+            re.IGNORECASE,
+        )
+        is not None
+    )
 
 
 def locate_upload_input(driver: webdriver.Chrome) -> object:
@@ -61,9 +59,18 @@ def locate_upload_input(driver: webdriver.Chrome) -> object:
 def locate_run_button(driver: webdriver.Chrome) -> object:
     wait = WebDriverWait(driver, 30)
     candidates = [
-        (By.XPATH, "//button[contains(translate(., 'abcdefghijklmnopqrstuvwxyz', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'),'RUN PREDICTION')]") ,
-        (By.XPATH, "//input[@type='submit' and contains(translate(@value, 'abcdefghijklmnopqrstuvwxyz', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'),'RUN PREDICTION')]") ,
-        (By.XPATH, "//*[self::button or self::a][contains(translate(., 'abcdefghijklmnopqrstuvwxyz', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'),'RUN') and contains(translate(., 'abcdefghijklmnopqrstuvwxyz', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'),'PREDICTION')]")
+        (
+            By.XPATH,
+            "//button[contains(translate(., 'abcdefghijklmnopqrstuvwxyz', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'),'RUN PREDICTION')]",
+        ),
+        (
+            By.XPATH,
+            "//input[@type='submit' and contains(translate(@value, 'abcdefghijklmnopqrstuvwxyz', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'),'RUN PREDICTION')]",
+        ),
+        (
+            By.XPATH,
+            "//*[self::button or self::a][contains(translate(., 'abcdefghijklmnopqrstuvwxyz', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'),'RUN') and contains(translate(., 'abcdefghijklmnopqrstuvwxyz', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'),'PREDICTION')]",
+        ),
     ]
     for by, selector in candidates:
         try:
@@ -73,22 +80,29 @@ def locate_run_button(driver: webdriver.Chrome) -> object:
     raise RuntimeError("Could not find RUN PREDICTION button on the page.")
 
 
-def run_prediction(driver: webdriver.Chrome, pdb_file: Path) -> Tuple[str, str, str]:
+def run_prediction(driver: webdriver.Chrome, pdb_file: Path, verbose: bool = False) -> Tuple[str, str]:
+    if verbose:
+        print(f"[INFO] Opening page for {pdb_file.name}")
     driver.get(URL)
 
     upload = locate_upload_input(driver)
     upload.send_keys(str(pdb_file.resolve()))
+    if verbose:
+        print(f"[INFO] Uploaded file: {pdb_file.resolve()}")
 
     run_btn = locate_run_button(driver)
     run_btn.click()
+    if verbose:
+        print("[INFO] Clicked RUN PREDICTION")
 
     wait_for_results(driver)
 
     body_text = driver.find_element(By.TAG_NAME, "body").text
-    kd = extract_metric(body_text, "kd")
-    del_g = extract_metric(body_text, "delg")
+    del_g = extract_delg(body_text)
     pdb_id = pdb_file.stem
-    return pdb_id, kd, del_g
+    if verbose:
+        print(f"[INFO] Extracted for {pdb_id}: Del G = {del_g}")
+    return pdb_id, del_g
 
 
 def create_driver(headless: bool = True) -> webdriver.Chrome:
@@ -103,10 +117,12 @@ def create_driver(headless: bool = True) -> webdriver.Chrome:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Upload PDB file(s) to csm_ab and extract Kd and Del G values.")
+        description="Upload PDB file(s) to csm_ab and extract Predicted binding affinity (∆G)."
+    )
     parser.add_argument("--pdb-folder", required=True, help="Folder containing .pdb file(s).")
     parser.add_argument("--output", default="prediction_output.csv", help="Output csv file path.")
     parser.add_argument("--headless", action="store_true", help="Run browser in headless mode.")
+    parser.add_argument("--verbose", action="store_true", help="Print verbose logs.")
     args = parser.parse_args()
 
     folder = Path(args.pdb_folder)
@@ -117,14 +133,19 @@ def main() -> None:
     if not pdb_files:
         raise FileNotFoundError(f"No .pdb files found in folder: {folder}")
 
+    if args.verbose:
+        print(f"[INFO] Found {len(pdb_files)} PDB file(s) in {folder}")
+
     results = []
     driver = create_driver(headless=args.headless)
     try:
         for pdb_file in pdb_files:
             try:
-                results.append(run_prediction(driver, pdb_file))
+                results.append(run_prediction(driver, pdb_file, verbose=args.verbose))
             except Exception as exc:
-                results.append((pdb_file.stem, f"ERROR: {exc}", "ERROR"))
+                if args.verbose:
+                    print(f"[ERROR] {pdb_file.stem}: {exc}")
+                results.append((pdb_file.stem, f"ERROR: {exc}"))
     finally:
         driver.quit()
 
@@ -132,9 +153,9 @@ def main() -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["pdb_name", "Del G", "Kd"])
-        for pdb_id, kd, del_g in results:
-            writer.writerow([pdb_id, del_g, kd])
+        writer.writerow(["pdb_name", "Del G"])
+        for pdb_id, del_g in results:
+            writer.writerow([pdb_id, del_g])
 
     print(f"Saved output to: {out_path.resolve()}")
 

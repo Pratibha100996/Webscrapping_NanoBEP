@@ -4,30 +4,33 @@ This script uploads `.pdb` file(s) from a folder to:
 
 `https://biosig.lab.uq.edu.au/csm_ab/prediction`
 
-Then it clicks **RUN PREDICTION**, extracts **Kd** and **Del G** from the results page, and saves them to a `.csv` file.
+Then it clicks **RUN PREDICTION**, extracts **only Del G** from:
 
-### Install
+`Predicted binding affinity (∆G):`
+
+and saves results to a `.csv` file.
+
+## Install
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### Run
+## Run
 
 ```bash
-python scrape_csm_ab.py --pdb-folder /path/to/pdb_files --output output.csv --headless
+python scrape_csm_ab.py --pdb-folder /path/to/pdb_files --output output.csv --headless --verbose
 ```
 
-### CSV output format
+## CSV output format
 
-Columns are written in this exact order:
+Columns are written in this order:
 1. `pdb_name`
 2. `Del G`
-3. `Kd`
 
 Example:
 
 ```csv
-pdb_name,Del G,Kd
-example,-10.2,1.2e-8
+pdb_name,Del G
+example,-10.2 kcal/mol
 ```
