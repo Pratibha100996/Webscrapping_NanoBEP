@@ -82,7 +82,6 @@ Optional login flags for PRODIGY:
 python scrape_prodigy.py --pdb-folder /path/to/pdbs --output out.csv --email you@example.com --password 'secret'
 ```
 
-
 ---
 
 ### 4) Area Affinity scraper
@@ -115,3 +114,19 @@ python scrape_area_affinity.py \
   --headless \
   --verbose
 ```
+
+---
+
+## Get UniProt IDs for proteins in a PDB complex
+
+Yes — for a given **PDB ID**, you can retrieve UniProt IDs mapped to each chain:
+
+```bash
+python get_uniprot_from_pdb.py --pdb-id 1BRS
+```
+
+What it prints:
+- chain-level mapping: `Chain -> UniProt`
+- a quick summary for the first two detected chains (potential partner 1 / partner 2)
+
+If a chain has no UniProt cross-reference in RCSB, it will print `NOT_MAPPED`.
