@@ -5,9 +5,10 @@ from pathlib import Path
 from typing import List, Tuple
 
 from selenium import webdriver
-from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import TimeoutException, WebDriverException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 
@@ -93,6 +94,56 @@ def find_first(driver: webdriver.Chrome, locators: List[Tuple[str, str]], timeou
         except Exception:
             continue
     raise RuntimeError(f"Could not find element with locators: {locators}")
+
+
+def _visible_elements(driver: webdriver.Chrome, xpath: str) -> List[WebElement]:
+    return [elem for elem in driver.find_elements(By.XPATH, xpath) if elem.is_displayed()]
+
+
+def locate_sequence_fields(driver: webdriver.Chrome, timeout: int = 30) -> Tuple[WebElement, WebElement]:
+    """Locate the two sequence fields, trying default page and iframes."""
+    candidate_xpaths = [
+        "//textarea[not(@disabled)]",
+        "//input[not(@disabled) and (@type='text' or not(@type))]",
+        "//*[@contenteditable='true']",
+    ]
+
+    def find_in_current_context() -> Tuple[WebElement, WebElement] | None:
+        for xpath in candidate_xpaths:
+            elems = _visible_elements(driver, xpath)
+            if len(elems) >= 2:
+                return elems[0], elems[1]
+        return None
+
+    driver.switch_to.default_content()
+    found = find_in_current_context()
+    if found:
+        return found
+
+    frames = driver.find_elements(By.TAG_NAME, "iframe") + driver.find_elements(By.TAG_NAME, "frame")
+    for idx, frame in enumerate(frames):
+        try:
+            driver.switch_to.default_content()
+            driver.switch_to.frame(frame)
+            found = find_in_current_context()
+            if found:
+                return found
+        except Exception:
+            continue
+
+    # Final attempt with explicit waits in default context.
+    driver.switch_to.default_content()
+    wait = WebDriverWait(driver, timeout)
+    wait.until(lambda d: len(d.find_elements(By.XPATH, "//textarea | //input | //*[@contenteditable='true']")) >= 2)
+
+    for xpath in candidate_xpaths:
+        elems = driver.find_elements(By.XPATH, xpath)
+        if len(elems) >= 2:
+            return elems[0], elems[1]
+
+    raise RuntimeError(
+        "Could not locate two editable sequence input fields on page or within iframes"
+    )
 
 
 def click_or_submit(driver: webdriver.Chrome) -> None:
@@ -214,6 +265,39 @@ def save_debug_artifacts(driver: webdriver.Chrome, file_id: str, debug_dir: Path
     return html_path, png_path
 
 
+
+
+def is_transient_connection_error(exc: Exception) -> bool:
+    if not isinstance(exc, WebDriverException):
+        return False
+    message = str(exc).lower()
+    transient_markers = [
+        "err_connection_closed",
+        "err_connection_reset",
+        "disconnected",
+        "chrome not reachable",
+        "target frame detached",
+        "tab crashed",
+    ]
+    return any(marker in message for marker in transient_markers)
+
+
+def save_debug_artifacts_safe(driver: webdriver.Chrome, file_id: str, debug_dir: Path) -> Tuple[Path | None, Path | None]:
+    try:
+        return save_debug_artifacts(driver, file_id, debug_dir)
+    except Exception:
+        return None, None
+
+
+def restart_driver(driver: webdriver.Chrome, headless: bool, verbose: bool) -> webdriver.Chrome:
+    try:
+        driver.quit()
+    except Exception:
+        pass
+    if verbose:
+        print("[WARN] Restarting browser session after transient WebDriver/network failure.")
+    return create_driver(headless=headless)
+
 def run_prediction(driver: webdriver.Chrome, fasta_file: Path, timeout: int, verbose: bool) -> Tuple[str, str, str]:
     (h1, seq1), (h2, seq2) = read_first_two_fasta_entries(fasta_file)
     file_id = fasta_file.stem
@@ -223,10 +307,11 @@ def run_prediction(driver: webdriver.Chrome, fasta_file: Path, timeout: int, ver
 
     driver.get(URL)
 
+    WebDriverWait(driver, 30).until(lambda d: d.execute_script("return document.readyState") == "complete")
+
     select_antigen_antibody(driver)
 
-    protein1 = find_first(driver, [(By.XPATH, "(//textarea)[1]")])
-    protein2 = find_first(driver, [(By.XPATH, "(//textarea)[2]")])
+    protein1, protein2 = locate_sequence_fields(driver, timeout=30)
 
     protein1.clear()
     protein1.send_keys(f"{h1}\n{seq1}")
@@ -253,6 +338,7 @@ def main() -> None:
     parser.add_argument("--timeout", type=int, default=240, help="Timeout for results (seconds)")
     parser.add_argument("--verbose", action="store_true", help="Print verbose logs")
     parser.add_argument("--debug-dir", default="debug_artifacts", help="Directory for HTML/screenshot on errors")
+    parser.add_argument("--retries", type=int, default=2, help="Retries per FASTA file after transient browser/network errors")
     args = parser.parse_args()
 
     folder = Path(args.fasta_folder)
@@ -269,24 +355,58 @@ def main() -> None:
     rows: List[Tuple[str, str, str]] = []
     driver = create_driver(headless=args.headless)
     debug_dir = Path(args.debug_dir)
+    max_attempts = max(1, args.retries + 1)
+
     try:
         for fasta_file in fasta_files:
-            try:
-                rows.append(run_prediction(driver, fasta_file, args.timeout, args.verbose))
-            except Exception as exc:
-                file_id = fasta_file.stem
-                html_path, png_path = save_debug_artifacts(driver, file_id, debug_dir)
-                msg = f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
-                if args.verbose:
-                    print(f"[ERROR] {file_id}: {msg}")
-                    print(f"[ERROR] URL at failure: {driver.current_url}")
-                    if isinstance(exc, TimeoutException):
-                        print("[HINT] Result text did not appear before timeout. Try --timeout 420 and inspect debug artifacts.")
-                    print(f"[DEBUG] Saved HTML: {html_path}")
-                    print(f"[DEBUG] Saved screenshot: {png_path}")
-                rows.append((file_id, f"ERROR: {msg}", "ERROR"))
+            file_id = fasta_file.stem
+            last_exc: Exception | None = None
+
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    rows.append(run_prediction(driver, fasta_file, args.timeout, args.verbose))
+                    last_exc = None
+                    break
+                except Exception as exc:
+                    last_exc = exc
+                    transient = is_transient_connection_error(exc)
+
+                    if transient and attempt < max_attempts:
+                        if args.verbose:
+                            print(
+                                f"[WARN] {file_id}: transient WebDriver/network error "
+                                f"on attempt {attempt}/{max_attempts}: {exc}"
+                            )
+                        driver = restart_driver(driver, headless=args.headless, verbose=args.verbose)
+                        continue
+
+                    html_path, png_path = save_debug_artifacts_safe(driver, file_id, debug_dir)
+                    msg = f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
+                    if args.verbose:
+                        print(f"[ERROR] {file_id}: {msg}")
+                        try:
+                            print(f"[ERROR] URL at failure: {driver.current_url}")
+                        except Exception:
+                            print("[ERROR] URL at failure: <unavailable>")
+                        if isinstance(exc, TimeoutException):
+                            print("[HINT] Result text did not appear before timeout. Try --timeout 420 and inspect debug artifacts.")
+                        elif transient:
+                            print("[HINT] Transient connection crash from Chromium/network. Retried automatically; increase --retries if needed.")
+                        if html_path and png_path:
+                            print(f"[DEBUG] Saved HTML: {html_path}")
+                            print(f"[DEBUG] Saved screenshot: {png_path}")
+                        else:
+                            print("[DEBUG] Could not save debug artifacts because browser session was unavailable.")
+                    rows.append((file_id, f"ERROR: {msg}", "ERROR"))
+                    break
+
+            if last_exc is not None and args.verbose and max_attempts > 1:
+                print(f"[INFO] {file_id}: exhausted {max_attempts} attempt(s).")
     finally:
-        driver.quit()
+        try:
+            driver.quit()
+        except Exception:
+            pass
 
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
