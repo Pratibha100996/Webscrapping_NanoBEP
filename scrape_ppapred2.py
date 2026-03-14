@@ -8,6 +8,7 @@ from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select, WebDriverWait
 
@@ -93,6 +94,56 @@ def find_first(driver: webdriver.Chrome, locators: List[Tuple[str, str]], timeou
         except Exception:
             continue
     raise RuntimeError(f"Could not find element with locators: {locators}")
+
+
+def _visible_elements(driver: webdriver.Chrome, xpath: str) -> List[WebElement]:
+    return [elem for elem in driver.find_elements(By.XPATH, xpath) if elem.is_displayed()]
+
+
+def locate_sequence_fields(driver: webdriver.Chrome, timeout: int = 30) -> Tuple[WebElement, WebElement]:
+    """Locate the two sequence fields, trying default page and iframes."""
+    candidate_xpaths = [
+        "//textarea[not(@disabled)]",
+        "//input[not(@disabled) and (@type='text' or not(@type))]",
+        "//*[@contenteditable='true']",
+    ]
+
+    def find_in_current_context() -> Tuple[WebElement, WebElement] | None:
+        for xpath in candidate_xpaths:
+            elems = _visible_elements(driver, xpath)
+            if len(elems) >= 2:
+                return elems[0], elems[1]
+        return None
+
+    driver.switch_to.default_content()
+    found = find_in_current_context()
+    if found:
+        return found
+
+    frames = driver.find_elements(By.TAG_NAME, "iframe") + driver.find_elements(By.TAG_NAME, "frame")
+    for idx, frame in enumerate(frames):
+        try:
+            driver.switch_to.default_content()
+            driver.switch_to.frame(frame)
+            found = find_in_current_context()
+            if found:
+                return found
+        except Exception:
+            continue
+
+    # Final attempt with explicit waits in default context.
+    driver.switch_to.default_content()
+    wait = WebDriverWait(driver, timeout)
+    wait.until(lambda d: len(d.find_elements(By.XPATH, "//textarea | //input | //*[@contenteditable='true']")) >= 2)
+
+    for xpath in candidate_xpaths:
+        elems = driver.find_elements(By.XPATH, xpath)
+        if len(elems) >= 2:
+            return elems[0], elems[1]
+
+    raise RuntimeError(
+        "Could not locate two editable sequence input fields on page or within iframes"
+    )
 
 
 def click_or_submit(driver: webdriver.Chrome) -> None:
@@ -223,10 +274,11 @@ def run_prediction(driver: webdriver.Chrome, fasta_file: Path, timeout: int, ver
 
     driver.get(URL)
 
+    WebDriverWait(driver, 30).until(lambda d: d.execute_script("return document.readyState") == "complete")
+
     select_antigen_antibody(driver)
 
-    protein1 = find_first(driver, [(By.XPATH, "(//textarea)[1]")])
-    protein2 = find_first(driver, [(By.XPATH, "(//textarea)[2]")])
+    protein1, protein2 = locate_sequence_fields(driver, timeout=30)
 
     protein1.clear()
     protein1.send_keys(f"{h1}\n{seq1}")
