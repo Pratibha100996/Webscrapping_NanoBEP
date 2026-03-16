@@ -146,10 +146,44 @@ def locate_sequence_fields(driver: webdriver.Chrome, timeout: int = 30) -> Tuple
     )
 
 
-def click_or_submit(driver: webdriver.Chrome) -> None:
+def click_or_submit(driver: webdriver.Chrome, context_elem: WebElement | None = None) -> None:
+    """Submit the prediction form.
+
+    Prefer the form enclosing the sequence field to avoid accidentally clicking
+    unrelated submit buttons (for example, site-wide search forms), which can
+    navigate to an unrelated "URL not found" page.
+    """
+    if context_elem is not None:
+        try:
+            form = driver.execute_script("return arguments[0].closest('form');", context_elem)
+            if form is not None:
+                submit_clicked = driver.execute_script(
+                    """
+                    const form = arguments[0];
+                    const candidates = form.querySelectorAll(
+                      "input[type='submit'], button[type='submit'], button"
+                    );
+                    for (const elem of candidates) {
+                      if (elem.disabled) continue;
+                      const style = window.getComputedStyle(elem);
+                      const hidden = style.display === 'none' || style.visibility === 'hidden';
+                      if (!hidden) { elem.click(); return true; }
+                    }
+                    if (typeof form.requestSubmit === 'function') { form.requestSubmit(); return true; }
+                    form.submit();
+                    return true;
+                    """,
+                    form,
+                )
+                if submit_clicked:
+                    return
+        except Exception:
+            pass
+
     candidates = [
-        (By.XPATH, "//input[@type='submit']"),
-        (By.XPATH, "//button[contains(translate(., 'abcdefghijklmnopqrstuvwxyz', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'),'SUBMIT')]"),
+        (By.XPATH, "//input[@type='submit' and not(@disabled)]"),
+        (By.XPATH, "//button[@type='submit' and not(@disabled)]"),
+        (By.XPATH, "//button[contains(translate(., 'abcdefghijklmnopqrstuvwxyz', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'),'SUBMIT') and not(@disabled)]"),
     ]
     for by, sel in candidates:
         try:
@@ -164,7 +198,11 @@ def click_or_submit(driver: webdriver.Chrome) -> None:
         const t1 = document.querySelectorAll('textarea');
         if (t1.length) {
           const form = t1[0].closest('form');
-          if (form) { form.submit(); return true; }
+          if (form) {
+            if (typeof form.requestSubmit === 'function') { form.requestSubmit(); return true; }
+            form.submit();
+            return true;
+          }
         }
         return false;
         """
@@ -318,7 +356,7 @@ def run_prediction(driver: webdriver.Chrome, fasta_file: Path, timeout: int, ver
     protein2.clear()
     protein2.send_keys(f"{h2}\n{seq2}")
 
-    click_or_submit(driver)
+    click_or_submit(driver, context_elem=protein1)
     wait_for_result_page(driver, timeout)
 
     text = driver.find_element(By.TAG_NAME, "body").text
