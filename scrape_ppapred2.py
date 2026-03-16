@@ -83,7 +83,26 @@ def create_driver(headless: bool = True) -> webdriver.Chrome:
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--window-size=1920,1080")
-    return webdriver.Chrome(options=options)
+
+    # Reduce Chrome automation fingerprinting/infobars.
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_experimental_option("useAutomationExtension", False)
+    options.add_argument("--disable-blink-features=AutomationControlled")
+
+    driver = webdriver.Chrome(options=options)
+
+    # Best-effort patch to mask navigator.webdriver for sites that hard-block automation.
+    try:
+        driver.execute_cdp_cmd(
+            "Page.addScriptToEvaluateOnNewDocument",
+            {
+                "source": "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
+            },
+        )
+    except Exception:
+        pass
+
+    return driver
 
 
 def find_first(driver: webdriver.Chrome, locators: List[Tuple[str, str]], timeout: int = 30):
@@ -101,7 +120,21 @@ def _visible_elements(driver: webdriver.Chrome, xpath: str) -> List[WebElement]:
 
 
 def locate_sequence_fields(driver: webdriver.Chrome, timeout: int = 30) -> Tuple[WebElement, WebElement]:
-    """Locate the two sequence fields, trying default page and iframes."""
+    """Locate the two sequence fields, preferring the known PPA-Pred2 IDs."""
+    driver.switch_to.default_content()
+
+    # First, use stable IDs from the PPA-Pred2 form when present.
+    try:
+        protein1 = WebDriverWait(driver, timeout).until(
+            EC.presence_of_element_located((By.ID, "sequence1"))
+        )
+        protein2 = WebDriverWait(driver, timeout).until(
+            EC.presence_of_element_located((By.ID, "sequence2"))
+        )
+        return protein1, protein2
+    except Exception:
+        pass
+
     candidate_xpaths = [
         "//textarea[not(@disabled)]",
         "//input[not(@disabled) and (@type='text' or not(@type))]",
@@ -115,13 +148,12 @@ def locate_sequence_fields(driver: webdriver.Chrome, timeout: int = 30) -> Tuple
                 return elems[0], elems[1]
         return None
 
-    driver.switch_to.default_content()
     found = find_in_current_context()
     if found:
         return found
 
     frames = driver.find_elements(By.TAG_NAME, "iframe") + driver.find_elements(By.TAG_NAME, "frame")
-    for idx, frame in enumerate(frames):
+    for frame in frames:
         try:
             driver.switch_to.default_content()
             driver.switch_to.frame(frame)
@@ -131,44 +163,43 @@ def locate_sequence_fields(driver: webdriver.Chrome, timeout: int = 30) -> Tuple
         except Exception:
             continue
 
-    # Final attempt with explicit waits in default context.
-    driver.switch_to.default_content()
-    wait = WebDriverWait(driver, timeout)
-    wait.until(lambda d: len(d.find_elements(By.XPATH, "//textarea | //input | //*[@contenteditable='true']")) >= 2)
-
-    for xpath in candidate_xpaths:
-        elems = driver.find_elements(By.XPATH, xpath)
-        if len(elems) >= 2:
-            return elems[0], elems[1]
-
     raise RuntimeError(
         "Could not locate two editable sequence input fields on page or within iframes"
     )
 
 
-def click_or_submit(driver: webdriver.Chrome) -> None:
-    candidates = [
-        (By.XPATH, "//input[@type='submit']"),
-        (By.XPATH, "//button[contains(translate(., 'abcdefghijklmnopqrstuvwxyz', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'),'SUBMIT')]"),
-    ]
-    for by, sel in candidates:
-        try:
-            elem = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((by, sel)))
-            elem.click()
-            return
-        except Exception:
-            continue
+def click_or_submit(driver: webdriver.Chrome, context_elem: WebElement | None = None) -> None:
+    """Submit the prediction form with strong preference for PPA-Pred2's known form controls."""
+    # Most reliable path on PPA-Pred2 page.
+    try:
+        elem = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, "#myForm input[type='submit']"))
+        )
+        elem.click()
+        return
+    except Exception:
+        pass
 
-    driver.execute_script(
-        """
-        const t1 = document.querySelectorAll('textarea');
-        if (t1.length) {
-          const form = t1[0].closest('form');
-          if (form) { form.submit(); return true; }
-        }
-        return false;
-        """
-    )
+    if context_elem is not None:
+        try:
+            form = driver.execute_script("return arguments[0].closest('form');", context_elem)
+            if form is not None:
+                submitted = driver.execute_script(
+                    """
+                    const form = arguments[0];
+                    const submit = form.querySelector("input[type='submit'], button[type='submit']");
+                    if (submit && !submit.disabled) { submit.click(); return true; }
+                    if (typeof form.requestSubmit === 'function') { form.requestSubmit(); return true; }
+                    return false;
+                    """,
+                    form,
+                )
+                if submitted:
+                    return
+        except Exception:
+            pass
+
+    raise RuntimeError("Could not submit PPA-Pred2 prediction form")
 
 
 
@@ -213,6 +244,20 @@ def select_antigen_antibody(driver: webdriver.Chrome) -> None:
         except Exception:
             continue
 
+
+
+
+def is_url_not_found_page(driver: webdriver.Chrome) -> bool:
+    try:
+        body_text = driver.find_element(By.TAG_NAME, "body").text.lower()
+    except Exception:
+        return False
+    markers = [
+        "url is not found",
+        "specified url is not found",
+        "404 not found",
+    ]
+    return any(m in body_text for m in markers)
 
 def parse_output_text(text: str) -> Tuple[str, str]:
     dg_patterns = [
@@ -268,6 +313,8 @@ def save_debug_artifacts(driver: webdriver.Chrome, file_id: str, debug_dir: Path
 
 
 def is_transient_connection_error(exc: Exception) -> bool:
+    if isinstance(exc, RuntimeError) and "url-not-found" in str(exc).lower():
+        return True
     if not isinstance(exc, WebDriverException):
         return False
     message = str(exc).lower()
@@ -318,7 +365,14 @@ def run_prediction(driver: webdriver.Chrome, fasta_file: Path, timeout: int, ver
     protein2.clear()
     protein2.send_keys(f"{h2}\n{seq2}")
 
-    click_or_submit(driver)
+    click_or_submit(driver, context_elem=protein1)
+
+    # Some server-side failures return a generic "URL is not found" page.
+    if is_url_not_found_page(driver):
+        raise RuntimeError(
+            "PPA-Pred2 returned a URL-not-found page after submit; retrying may recover."
+        )
+
     wait_for_result_page(driver, timeout)
 
     text = driver.find_element(By.TAG_NAME, "body").text
