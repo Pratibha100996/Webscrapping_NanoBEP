@@ -153,7 +153,7 @@ def click_or_submit(driver: webdriver.Chrome) -> None:
     ]
     for by, sel in candidates:
         try:
-            elem = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((by, sel)))
+            elem = WebDriverWait(driver, 40).until(EC.element_to_be_clickable((by, sel)))
             elem.click()
             return
         except Exception:
