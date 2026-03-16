@@ -83,7 +83,26 @@ def create_driver(headless: bool = True) -> webdriver.Chrome:
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--window-size=1920,1080")
-    return webdriver.Chrome(options=options)
+
+    # Reduce Chrome automation fingerprinting/infobars.
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_experimental_option("useAutomationExtension", False)
+    options.add_argument("--disable-blink-features=AutomationControlled")
+
+    driver = webdriver.Chrome(options=options)
+
+    # Best-effort patch to mask navigator.webdriver for sites that hard-block automation.
+    try:
+        driver.execute_cdp_cmd(
+            "Page.addScriptToEvaluateOnNewDocument",
+            {
+                "source": "Object.defineProperty(navigator, 'webdriver', {get: () => undefined});"
+            },
+        )
+    except Exception:
+        pass
+
+    return driver
 
 
 def find_first(driver: webdriver.Chrome, locators: List[Tuple[str, str]], timeout: int = 30):
