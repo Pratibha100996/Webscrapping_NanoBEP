@@ -130,3 +130,33 @@ What it prints:
 - a quick summary for the first two detected chains (potential partner 1 / partner 2)
 
 If a chain has no UniProt cross-reference in RCSB, it will print `NOT_MAPPED`.
+
+---
+
+### 5) ProAffinity-GNN helper runner
+
+Script: `ProAffinity-GNN.py`
+
+What it does:
+- clones/updates `https://github.com/legendzzy/ProAffinity-GNN`,
+- creates a local virtual environment,
+- installs dependencies,
+- asks for your PDB input,
+- runs the repository prediction command and prints step-by-step progress.
+
+Run (from repository root):
+
+```bash
+python ProAffinity-GNN.py
+```
+
+Alternative launcher (same behavior, filename without `-`):
+
+```bash
+python proaffinity_gnn.py
+```
+
+Troubleshooting `No such file or directory`:
+- ensure you are in the repo directory that contains this file,
+- run `pwd` and `ls` to verify script presence,
+- if needed use an absolute path, e.g. `python /path/to/Webscrapping_NanoBEP/ProAffinity-GNN.py`.
