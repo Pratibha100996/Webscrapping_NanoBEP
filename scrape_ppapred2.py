@@ -169,7 +169,7 @@ def locate_sequence_fields(driver: webdriver.Chrome, timeout: int = 30) -> Tuple
 
 
 def click_or_submit(driver: webdriver.Chrome, context_elem: WebElement | None = None) -> None:
-<<<<<<< HEAD
+
 if context_elem is not None:
     try:
         # Try clicking the element directly
@@ -178,7 +178,7 @@ if context_elem is not None:
         return
     except Exception:
         pass
-=======
+
     """Submit the prediction form with strong preference for PPA-Pred2's known form controls."""
     submit_locators = [
         (By.CSS_SELECTOR, "#myForm input[type='submit']"),
