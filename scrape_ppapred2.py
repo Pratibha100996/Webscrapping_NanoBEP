@@ -169,8 +169,18 @@ def locate_sequence_fields(driver: webdriver.Chrome, timeout: int = 30) -> Tuple
 
 
 def click_or_submit(driver: webdriver.Chrome, context_elem: WebElement | None = None) -> None:
+
+if context_elem is not None:
+    try:
+        # Try clicking the element directly
+        elem = WebDriverWait(driver, 40).until(EC.element_to_be_clickable((by, sel)))
+        elem.click()
+        return
+    except Exception:
+        pass
+
     """Submit the prediction form with strong preference for PPA-Pred2's known form controls."""
-    submit_locators: List[Tuple[str, str]] = [
+    submit_locators = [
         (By.CSS_SELECTOR, "#myForm input[type='submit']"),
         (By.CSS_SELECTOR, "input[type='submit']"),
         (By.CSS_SELECTOR, "button[type='submit']"),
@@ -178,38 +188,31 @@ def click_or_submit(driver: webdriver.Chrome, context_elem: WebElement | None = 
 
     for by, locator in submit_locators:
         try:
-            elem = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable((by, locator))
-            )
+            elem = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((by, locator)))
             elem.click()
             return
         except Exception:
             continue
 
-    if context_elem is not None:
-        try:
-            form = driver.execute_script(
-                "return arguments[0].closest('form');", context_elem
+
+    try:
+        # Try submitting the closest form
+        form = driver.execute_script("return arguments[0].closest('form');", context_elem)
+        if form is not None:
+            submitted = driver.execute_script(
+                """
+                const form = arguments[0];
+                const submit = form.querySelector("input[type='submit'], button[type='submit']");
+                if (submit && !submit.disabled) { submit.click(); return true; }
+                if (typeof form.requestSubmit === 'function') { form.requestSubmit(); return true; }
+                return false;
+                """,
+                form,
             )
-            if form is not None:
-                submitted = driver.execute_script(
-                    """
-                    const form = arguments[0];
-                    const submit = form.querySelector("input[type='submit'], button[type='submit']");
-                    if (submit && !submit.disabled) { submit.click(); return true; }
-                    if (typeof form.requestSubmit === 'function') { form.requestSubmit(); return true; }
-                    return false;
-                    """,
-                    form,
-                )
-                if submitted:
-                    return
-        except Exception:
-            pass
-
-    raise RuntimeError("Could not submit PPA-Pred2 prediction form")
-
-
+            if submitted:
+                return
+    except Exception:
+        pass
 
 
 def select_antigen_antibody(driver: webdriver.Chrome) -> None:

@@ -1,0 +1,320 @@
+<html lang="en"><head>
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async="" src="https://www.googletagmanager.com/gtag/js?id=G-14NYHWCKGX"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+
+        function gtag() {
+            dataLayer.push(arguments);
+        }
+        gtag('js', new Date());
+
+        gtag('config', 'G-14NYHWCKGX');
+    </script>
+    <meta charset="utf-8">
+    <title>CSM-AB</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="CSM-AB WebServer">
+    <meta name="author" content="YooChan Myung">
+    <!-- Styles -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="/csm_ab/static/materialize/css/materialize.min.css">
+    <link rel="stylesheet" href="/csm_ab/static/fontawesome-5.3.1/css/all.css">
+    <link rel="shortcut icon" href="/csm_ab/static/img/favicon.ico">
+    <style type="text/css">
+
+        span {
+            color: #575757;
+        }
+
+        .form-control {
+            display: block;
+            width: 100%;
+            height: calc(2.25rem + 2px);
+            padding: .3rem .55rem;
+            margin-left: 5px;
+            font-size: 14px;
+            line-height: 1.2;
+            color: #575757;
+            background-color: #fff;
+            background-clip: padding-box;
+            border: 1px solid #ced4da;
+            border-radius: .25rem;
+            transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+            border-radius: 0px;
+        }
+
+        p {
+            padding-left: 10px;
+            margin: 0px;
+            color: #575757;
+        }
+
+        [type="radio"]:checked+span:after {
+            background-color: #03a9f4 !important;
+            border: 2px solid #03a9f4 !important;
+        }
+        b {
+            color: #000000;
+        }
+        .btn {
+            background-color: #03a9f4;
+        }
+        .btn:hover {
+            background-color: #3ec2ff;
+        }
+        .no-shadows {
+                box-shadow: none!important;
+
+        }
+        .material-tooltip{
+            background-color: #e3e3e3;
+            color: #333333;
+            max-width: 300px;
+        }
+
+        td.dreta {
+            text-align: right;
+        }
+
+        .img-center {
+            text-align: center;
+        }
+        body {
+        display: flex;
+        min-height: 100vh;
+        flex-direction: column;
+        }
+        main {
+        flex: 1 0 auto;
+        }
+        /* h3 {
+            font-size: 2.3rem;
+            margin-top:5px;
+            margin-bottom:1px;
+        }
+
+        h4 {
+            font-size:18px;
+            margin:0px;
+        } */
+        h5 {
+            margin: 0.4rem 0.4rem;
+        }
+        h6 {
+            margin: 0.2rem 0.2rem;
+        }
+        .pulse {
+            margin: 1px;
+            display: inline-block;
+            width: 17px;
+            height: 17px;
+            border-radius: 70%;
+            background: #989d97;
+            cursor: pointer;
+            box-shadow: 0 0 0 rgba(232, 238, 231, 0.4);
+            animation: pulse 1s infinite;
+        }
+
+        .pulse:hover {
+            animation: none;
+        }
+
+        /* .patron-footer img{
+            max-width:180px;
+            max-height:100%;
+            vertical-align:middle;                    
+            display: inline-block;
+        }
+        
+        .patron-footer {
+            vertical-align:middle;                    
+            float: left;
+        } */
+
+        @-webkit-keyframes pulse {
+            0% {
+                -webkit-box-shadow: 0 0 0 0 rgba(211, 216, 210, 0.4);
+            }
+            70% {
+                -webkit-box-shadow: 0 0 0 10px rgba(204, 169, 44, 0);
+            }
+            100% {
+                -webkit-box-shadow: 0 0 0 0 rgba(204, 169, 44, 0);
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                -moz-box-shadow: 0 0 0 0 rgba(238, 132, 142, 0.4);
+                box-shadow: 0 0 0 0 rgba(238, 132, 142, 0.4);
+            }
+            70% {
+                -moz-box-shadow: 0 0 0 10px rgba(204, 169, 44, 0);
+                box-shadow: 0 0 0 10px rgba(204, 169, 44, 0);
+            }
+            100% {
+                -moz-box-shadow: 0 0 0 0 rgba(204, 169, 44, 0);
+                box-shadow: 0 0 0 0 rgba(204, 169, 44, 0);
+            }
+        }
+        /* nav ul a {
+            color:#333333;
+        } */
+
+    </style>
+    
+    
+</head>
+<body>
+    <header>
+        <div class="navbar-fixed">
+            <nav class="light-blue darken-3 navbar-fixed" role="navigation">
+                <div class="nav-wrapper container">
+                    <a class="brand-logo" href="/csm_ab/">CSM-AB</a>
+                    <a href="#" data-target="nav-mobile" class="sidenav-trigger"><i class="material-icons">menu</i></a>
+                    <ul class="right hide-on-med-and-down">
+                        <li class=""><a href="/csm_ab/prediction"><i class="fas fa-chart-bar"></i> Predict</a>
+                        </li>
+                        <li class=""><a href="/csm_ab/api"><i class="fas fa-cogs"></i> API</a>
+                        </li>                        
+                        <li class=""><a href="/csm_ab/datasets"><i class="fas fa-database"></i> Dataset</a>
+                        </li>
+                        <li class=""><a href="/csm_ab/help"><i class="far fa-question-circle"></i> Help</a>
+                        </li>
+                        <li class=""><a href="https://biosig.lab.uq.edu.au/contact"><i class="fas fa-envelope"></i>
+                                Contact</a></li>
+                        <li class=""><a href="https://biosig.lab.uq.edu.au/acknowledgements"><i class="fas fa-thumbs-up"></i> Acknowledgements</a></li>
+                    </ul>
+                </div>
+            </nav>
+        </div>
+        <ul id="nav-mobile" class="sidenav">
+            <li class=""><a href="/csm_ab/prediction"><i class="fas fa-chart-bar"></i> Predict</a></li>
+            <li class=""><a href="/csm_ab/api"><i class="fas fa-cogs"></i> API</a></li>                    
+            <li class=""><a href="/csm_ab/datasets"><i class="fas fa-database"></i> Dataset</a></li>
+            <li class=""><a href="/csm_ab/help"><i class="far fa-question-circle"></i> Help</a></li>
+            <li class=""><a href="https://biosig.lab.uq.edu.au/contact"><i class="fas fa-envelope"></i> Contact</a></li>
+            <li class=""><a href="https://biosig.lab.uq.edu.au/acknowledgements"><i class="fas fa-thumbs-up"></i>
+                    Acknowledgements</a></li>
+        </ul>
+    </header>
+    <!-- MAIN CONTENT -->
+    <main>
+        
+
+<h2>Prediction Error</h2>
+
+<br><br>
+
+<div class="row fluid">
+	<div class="span3">
+	</div>
+	<div class="span9">
+			<div class="alert alert-error">
+				<br>
+				 
+					
+						Given PDB has no Antibody Sequence. If your structure is not Ab-ag complex, the performance of prediction can be affected. <br>
+					
+						 <br>
+					
+						Please provide the Ab-Ag complex. <br>
+					
+						             or                  <br>
+					
+						Specify Antibody Chain(s) from following chains(BA) and Resubmit the job. <br>
+					
+						 <br>
+					
+				 
+			</div>
+            <div class="input-field col s12">
+                <div class="select-wrapper"><input class="select-dropdown dropdown-trigger" type="text" readonly="true" data-target="select-options-ddcb2fc0-f0ec-9041-5b62-3e1119297e22"><ul id="select-options-ddcb2fc0-f0ec-9041-5b62-3e1119297e22" class="dropdown-content select-dropdown multiple-select-dropdown" tabindex="0"><li class="disabled selected" id="select-options-ddcb2fc0-f0ec-9041-5b62-3e1119297e220" tabindex="0"><span><label><input type="checkbox" disabled="" "=""><span> Choose Antibody chain(s):</span></label></span></li><li id="select-options-ddcb2fc0-f0ec-9041-5b62-3e1119297e221" tabindex="0"><span><label><input type="checkbox" "=""><span>B</span></label></span></li><li id="select-options-ddcb2fc0-f0ec-9041-5b62-3e1119297e222" tabindex="0"><span><label><input type="checkbox" "=""><span>A</span></label></span></li></ul><svg class="caret" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg><select multiple="multiple" id="selected_ab_chains" tabindex="-1">
+                    <option value="" disabled="" selected=""> Choose Antibody chain(s):</option>
+                    
+                        
+                            <option value="B">B</option>
+                        
+                            <option value="A">A</option>
+                        
+                    
+                </select></div>
+                <label>Chain List</label>
+            </div>
+			<br>
+            <div class="col s6" style="text-align:center;">
+                <a id="re_run_job" href="/" class="btn waves-effect waves-light" style="background-color:#1e88e5;">Resubmit this job</a>
+            </div>
+
+			<a type="button" class="btn btn-info" href="/csm_ab/prediction"><i class="icon-repeat"></i> Run another prediction</a>
+	</div>
+</div>
+
+<br><br>
+
+
+    </main>
+
+    <footer class="page-footer light-blue darken-3">
+        <div class="container">
+            <div class="row">
+                <div class="col l6 s12">
+                    <h5 class="white-text"><a class="white-text" href="https://biosig.lab.uq.edu.au">Biosig Lab <i class="material-icons">launch</i></a></h5>
+                    <p class="grey-text text-lighten-4">Our group is interested in developing and experimentally
+                        validating novel computational methods to exploit this data, enhancing the impact of genome
+                        sequencing, structural genomics, and functional genomics on biology and medicine.</p>
+                </div>
+                <div class="col l6 s12">
+                    <div class="valign-wrapper">
+                        <div class="col l5 s5">
+                            <a href="https://www.cpqrr.fiocruz.br/pg/" target="_blank">
+                                <img class="responsive-img" src="/csm_ab/static/img/baker_logo.svg" alt="Baker Logo">
+                            </a>
+                        </div>
+                        <div class="col l6 s6">
+                            <a href="https://www.bio21.unimelb.edu.au/" target="_blank">
+                                <img class="responsive-img" src="/csm_ab/static/img/unimelb_n_bio21.png" alt="Bio21 Logo">
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="footer-copyright">
+            <div class="container right-align">
+                <a href="https://opendefinition.org/okd" target="_blank">
+                    <img alt="This material is Open Knowledge" style="border:0" src="https://assets.okfn.org/images/ok_buttons/ok_80x15_blue.png">
+                </a>
+                <br>
+                <small>Best viewed using <a target="_blank" href="https://www.google.com/chrome">Chrome</a> on 1280x960
+                    resolution and above</small>
+            </div>
+        </div>
+    </footer>
+<script type="text/javascript" src="/csm_ab/static/js/jquery-3.3.1.min.js"></script>
+<script type="text/javascript" src="/csm_ab/static/materialize/js/materialize.min.js"></script>
+
+
+<script>
+    var selected_chains = $('#selected_ab_chains').val();
+    var predtype = 'single';
+    var job_id = '1772807538.8323355';
+    $(document).on('click','div',function(){
+        var antibody_chains = $('#selected_ab_chains').val().join('');
+        document.getElementById('re_run_job').href = `/csm_ab/re_run_job/__PREDTYPE__/__JOBID__/__CHAINS__`.replace('__PREDTYPE__', predtype).replace('__JOBID__', job_id).replace('__CHAINS__', antibody_chains);
+    });
+</script>
+
+<script>
+    $(document).ready(function(){
+        $('#nav-mobile').sidenav();
+        $('select').formSelect();
+        $('.tooltipped').tooltip({
+            html:true,
+        });
+            
+    });
+</script>
+
+<div class="sidenav-overlay"></div><div class="drag-target"></div></body></html>

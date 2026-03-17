@@ -1,0 +1,812 @@
+<html lang="en"><head>
+    <!-- Global site tag (gtag.js) - Google Analytics -->
+    <script async="" src="https://www.googletagmanager.com/gtag/js?id=G-14NYHWCKGX"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+
+        function gtag() {
+            dataLayer.push(arguments);
+        }
+        gtag('js', new Date());
+
+        gtag('config', 'G-14NYHWCKGX');
+    </script>
+    <meta charset="utf-8">
+    <title>CSM-AB</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="CSM-AB WebServer">
+    <meta name="author" content="YooChan Myung">
+    <!-- Styles -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="/csm_ab/static/materialize/css/materialize.min.css">
+    <link rel="stylesheet" href="/csm_ab/static/fontawesome-5.3.1/css/all.css">
+    <link rel="shortcut icon" href="/csm_ab/static/img/favicon.ico">
+    <style type="text/css">
+
+        span {
+            color: #575757;
+        }
+
+        .form-control {
+            display: block;
+            width: 100%;
+            height: calc(2.25rem + 2px);
+            padding: .3rem .55rem;
+            margin-left: 5px;
+            font-size: 14px;
+            line-height: 1.2;
+            color: #575757;
+            background-color: #fff;
+            background-clip: padding-box;
+            border: 1px solid #ced4da;
+            border-radius: .25rem;
+            transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out;
+            border-radius: 0px;
+        }
+
+        p {
+            padding-left: 10px;
+            margin: 0px;
+            color: #575757;
+        }
+
+        [type="radio"]:checked+span:after {
+            background-color: #03a9f4 !important;
+            border: 2px solid #03a9f4 !important;
+        }
+        b {
+            color: #000000;
+        }
+        .btn {
+            background-color: #03a9f4;
+        }
+        .btn:hover {
+            background-color: #3ec2ff;
+        }
+        .no-shadows {
+                box-shadow: none!important;
+
+        }
+        .material-tooltip{
+            background-color: #e3e3e3;
+            color: #333333;
+            max-width: 300px;
+        }
+
+        td.dreta {
+            text-align: right;
+        }
+
+        .img-center {
+            text-align: center;
+        }
+        body {
+        display: flex;
+        min-height: 100vh;
+        flex-direction: column;
+        }
+        main {
+        flex: 1 0 auto;
+        }
+        /* h3 {
+            font-size: 2.3rem;
+            margin-top:5px;
+            margin-bottom:1px;
+        }
+
+        h4 {
+            font-size:18px;
+            margin:0px;
+        } */
+        h5 {
+            margin: 0.4rem 0.4rem;
+        }
+        h6 {
+            margin: 0.2rem 0.2rem;
+        }
+        .pulse {
+            margin: 1px;
+            display: inline-block;
+            width: 17px;
+            height: 17px;
+            border-radius: 70%;
+            background: #989d97;
+            cursor: pointer;
+            box-shadow: 0 0 0 rgba(232, 238, 231, 0.4);
+            animation: pulse 1s infinite;
+        }
+
+        .pulse:hover {
+            animation: none;
+        }
+
+        /* .patron-footer img{
+            max-width:180px;
+            max-height:100%;
+            vertical-align:middle;                    
+            display: inline-block;
+        }
+        
+        .patron-footer {
+            vertical-align:middle;                    
+            float: left;
+        } */
+
+        @-webkit-keyframes pulse {
+            0% {
+                -webkit-box-shadow: 0 0 0 0 rgba(211, 216, 210, 0.4);
+            }
+            70% {
+                -webkit-box-shadow: 0 0 0 10px rgba(204, 169, 44, 0);
+            }
+            100% {
+                -webkit-box-shadow: 0 0 0 0 rgba(204, 169, 44, 0);
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                -moz-box-shadow: 0 0 0 0 rgba(238, 132, 142, 0.4);
+                box-shadow: 0 0 0 0 rgba(238, 132, 142, 0.4);
+            }
+            70% {
+                -moz-box-shadow: 0 0 0 10px rgba(204, 169, 44, 0);
+                box-shadow: 0 0 0 10px rgba(204, 169, 44, 0);
+            }
+            100% {
+                -moz-box-shadow: 0 0 0 0 rgba(204, 169, 44, 0);
+                box-shadow: 0 0 0 0 rgba(204, 169, 44, 0);
+            }
+        }
+        /* nav ul a {
+            color:#333333;
+        } */
+
+    </style>
+    
+    <link rel="stylesheet" type="text/css" href="/csm_ab/static/datatable/DataTables-1.10.18/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="/csm_ab/static/datatable/Select-1.2.6/css/select.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="/csm_ab/static/datatable/Buttons-1.5.2/css/buttons.dataTables.min.css">
+
+</head>
+<body>
+    <header>
+        <div class="navbar-fixed">
+            <nav class="light-blue darken-3 navbar-fixed" role="navigation">
+                <div class="nav-wrapper container">
+                    <a class="brand-logo" href="/csm_ab/">CSM-AB</a>
+                    <a href="#" data-target="nav-mobile" class="sidenav-trigger"><i class="material-icons">menu</i></a>
+                    <ul class="right hide-on-med-and-down">
+                        <li class=""><a href="/csm_ab/prediction"><i class="fas fa-chart-bar"></i> Predict</a>
+                        </li>
+                        <li class=""><a href="/csm_ab/api"><i class="fas fa-cogs"></i> API</a>
+                        </li>                        
+                        <li class=""><a href="/csm_ab/datasets"><i class="fas fa-database"></i> Dataset</a>
+                        </li>
+                        <li class=""><a href="/csm_ab/help"><i class="far fa-question-circle"></i> Help</a>
+                        </li>
+                        <li class=""><a href="https://biosig.lab.uq.edu.au/contact"><i class="fas fa-envelope"></i>
+                                Contact</a></li>
+                        <li class=""><a href="https://biosig.lab.uq.edu.au/acknowledgements"><i class="fas fa-thumbs-up"></i> Acknowledgements</a></li>
+                    </ul>
+                </div>
+            </nav>
+        </div>
+        <ul id="nav-mobile" class="sidenav">
+            <li class=""><a href="/csm_ab/prediction"><i class="fas fa-chart-bar"></i> Predict</a></li>
+            <li class=""><a href="/csm_ab/api"><i class="fas fa-cogs"></i> API</a></li>                    
+            <li class=""><a href="/csm_ab/datasets"><i class="fas fa-database"></i> Dataset</a></li>
+            <li class=""><a href="/csm_ab/help"><i class="far fa-question-circle"></i> Help</a></li>
+            <li class=""><a href="https://biosig.lab.uq.edu.au/contact"><i class="fas fa-envelope"></i> Contact</a></li>
+            <li class=""><a href="https://biosig.lab.uq.edu.au/acknowledgements"><i class="fas fa-thumbs-up"></i>
+                    Acknowledgements</a></li>
+        </ul>
+    </header>
+    <!-- MAIN CONTENT -->
+    <main>
+        
+    <style>
+        .link.hbond {
+            stroke: red;
+        }
+
+        .link.ionic {
+            stroke: #FFEB3B;
+
+        }
+
+        .link.covalent {
+            stroke: #D35400;
+
+        }
+
+        .link.vdw {
+            stroke: #BBDEFB;
+
+        }
+
+        .link.hbond {
+            stroke: #EF5350;
+
+        }
+
+        .link.halogen {
+            stroke: #F4D03F;
+
+        }
+
+        .link.metal_complex {
+            stroke: #AED6F1;
+
+        }
+
+        .link.aromatic {
+            stroke: #AED581;
+
+        }
+
+        .link.hydrophobic {
+            stroke: #4CAF50;
+
+        }
+
+        .link.carbonyl {
+            stroke: #2196F3;
+
+        }
+
+        .link.polar_hbond {
+            stroke: #FFCC80;
+
+        }
+
+        .link.PIints {
+            stroke: #FA6AFF
+
+        }
+
+        .link.ring {
+            stroke: #5D4037;
+
+        }
+
+        .switch.wt input[type=checkbox]:checked + .lever {
+            background-color: #9e9e9e;
+
+        }
+
+        .switch.wt input[type=checkbox]:checked + .lever:after {
+            background-color: #757575;
+
+        }
+
+        .switch.mt input[type=checkbox]:checked + .lever {
+            background-color: #9e9e9e;
+
+        }
+
+        .switch.mt input[type=checkbox]:checked + .lever:after {
+            background-color: #757575;
+
+        }
+
+        .switch.PIints input[type=checkbox]:checked + .lever {
+            background-color: #f48fb1;
+
+        }
+
+        .switch.PIints input[type=checkbox]:checked + .lever:after {
+            background-color: #f06292;
+
+        }
+
+        .switch.vdw input[type=checkbox]:checked + .lever {
+            background-color: #bbdefb;
+
+        }
+
+        .switch.vdw input[type=checkbox]:checked + .lever:after {
+            background-color: #90caf9;
+
+        }
+
+        .switch.hbond input[type=checkbox]:checked + .lever {
+            background-color: #ef5350;
+
+        }
+
+        .switch.hbond input[type=checkbox]:checked + .lever:after {
+            background-color: #f44336;
+
+        }
+
+        .switch.ionic input[type=checkbox]:checked + .lever {
+            background-color: #fff9c4;
+
+        }
+
+        .switch.ionic input[type=checkbox]:checked + .lever:after {
+            background-color: #ffeb3b;
+
+        }
+
+        .switch.aromatic input[type=checkbox]:checked + .lever {
+            background-color: #dcedc8;
+
+        }
+
+        .switch.aromatic input[type=checkbox]:checked + .lever:after {
+            background-color: #aed581;
+
+        }
+
+        .switch.hydrophobic input[type=checkbox]:checked + .lever {
+            background-color: #a5d6a7;
+
+        }
+
+        .switch.hydrophobic input[type=checkbox]:checked + .lever:after {
+            background-color: #4caf50;
+
+        }
+
+        .switch.carbonyl input[type=checkbox]:checked + .lever {
+            background-color: #64b5f6;
+
+        }
+
+        .switch.carbonyl input[type=checkbox]:checked + .lever:after {
+            background-color: #2196f3;
+
+        }
+
+        .switch.polar input[type=checkbox]:checked + .lever {
+            background-color: #ffcc80;
+
+        }
+
+        .switch.polar input[type=checkbox]:checked + .lever:after {
+            background-color: #ff9800;
+
+        }
+
+        .switch.ring input[type=checkbox]:checked + .lever {
+            background-color: #a1887f;
+
+        }
+
+        .switch.ring input[type=checkbox]:checked + .lever:after {
+            background-color: #5d4037;
+
+        }
+
+        div.dt-buttons {
+            float: right;
+            margin-top: 5px;
+        }
+
+        td {
+            text-align: center;
+        }
+
+        th {
+            text-align: center;
+        }
+
+        canvas {
+            padding: 5px;
+            margin: 5px;
+            display: block;
+            width: auto;
+            height: 600px;
+            position: relative;
+            align-content: center;
+        }
+
+        .section {
+            padding-top: 0px;
+        }
+
+        .card-header {
+            padding: .25rem 1.25rem;
+            margin-bottom: 0;
+            background-color: rgba(0, 0, 0, .03);
+            border-bottom: 1px solid rgba(0, 0, 0, .125);
+        }
+
+        .btn-outline-light {
+            border: 1px solid rgba(0, 0, 0, .125);
+            color: #616d7e;
+        }
+
+        .select-wrapper input.select-dropdown {
+            font-size: 13px;
+        }
+
+        body {
+            font-size: 13px;
+        }
+
+        p {
+            font-size: 14px;
+            margin: 0;
+        }
+
+        label.btn.btn-outline-dark.btn-block {
+            margin: 0px;
+        }
+
+        .card-title {
+            font-weight: bolder;
+            font-family: arial black;
+        }
+
+        .btn-white {
+            background-color: white;
+            color: #616d7e;
+        }
+
+        .five-columns {
+            display: flex;
+            margin: 0.5% !important;
+        }
+
+    </style>
+    <div class="container">
+        <div class="row" style="text-align:center;font-family:arial black;margin:0px;">
+            <h2 style="padding:0px;">Prediction Results</h2>
+        </div>
+        <div class="row" style="margin-bottom:0px;">
+            <div class="col s12 m12 l12">
+                <div class="card">
+                    <div class="card-content" style="padding-bottom:1px;">
+                        <div class="card-title"><strong>Results</strong></div>
+                        <h5><b>Predicted binding affinity (∆G)</b>: -10.7 Kcal/mol</h5><br>
+                        <h6><b>Antibody chains</b>: B</h6><br>
+                        <h6><b>Antigen chains</b>: A</h6><br>
+                        <h6><b>Type of Antibody</b>: Nanobody</h6><br>
+                        <h6><b> Number of interface residues</b>: <span class="num_int_residues">72</span></h6><br>
+                        <canvas id="myChart" width="800" height="400"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row" style="margin-bottom:0px;">
+            <div class="col s12 m12 l12">
+                <div class="card">
+                    <div class="card-content" style="padding-bottom:1px;">
+                        <div class="card-title"><strong>3D Visualisation</strong></div>
+                        <div class="row">
+                            <div class="row col-12" style="margin:0px;padding:0px">
+                                <div class="col s3 m3 l3">
+                                    <div class="select-wrapper"><input class="select-dropdown dropdown-trigger" type="text" readonly="true" data-target="select-options-f3962f27-5f8f-9908-50bc-6ea9e10f6721"><ul id="select-options-f3962f27-5f8f-9908-50bc-6ea9e10f6721" class="dropdown-content select-dropdown" tabindex="0"><li id="select-options-f3962f27-5f8f-9908-50bc-6ea9e10f67210" tabindex="0" class="selected"><span>Background color</span></li><li id="select-options-f3962f27-5f8f-9908-50bc-6ea9e10f67211" tabindex="0"><span>White</span></li><li id="select-options-f3962f27-5f8f-9908-50bc-6ea9e10f67212" tabindex="0"><span>Black</span></li></ul><svg class="caret" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg><select class="select" name="backgroundColor" id="backgroundColor" tabindex="-1">
+                                        <option value="default" selected="">Background color</option>
+                                        <option value="white">White</option>
+                                        <option value="black">Black</option>
+                                    </select></div>
+                                </div>
+
+                                <div class="col s2 m2 l2">
+                                    <div class="select-wrapper"><input class="select-dropdown dropdown-trigger" type="text" readonly="true" data-target="select-options-fa074dac-8520-3ca4-d462-ee5b0630dac0"><ul id="select-options-fa074dac-8520-3ca4-d462-ee5b0630dac0" class="dropdown-content select-dropdown" tabindex="0"><li id="select-options-fa074dac-8520-3ca4-d462-ee5b0630dac00" tabindex="0" class="selected"><span>Show Antibody as cartoon</span></li><li id="select-options-fa074dac-8520-3ca4-d462-ee5b0630dac01" tabindex="0"><span>ball+stick</span></li><li id="select-options-fa074dac-8520-3ca4-d462-ee5b0630dac02" tabindex="0"><span>licorice</span></li><li id="select-options-fa074dac-8520-3ca4-d462-ee5b0630dac03" tabindex="0"><span>spacefill</span></li><li id="select-options-fa074dac-8520-3ca4-d462-ee5b0630dac04" tabindex="0"><span>surface</span></li></ul><svg class="caret" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg><select class="select" name="select-style_ab" id="select-style_ab" tabindex="-1">
+                                        <option value="cartoon" selected="">Show Antibody as cartoon</option>
+                                        <option value="ball+stick">ball+stick</option>
+                                        <option value="licorice">licorice</option>
+                                        <option value="spacefill">spacefill</option>
+                                        <option value="surface">surface</option>
+                                    </select></div>
+                                </div>
+
+                                <div class="col s2 m2 l2">
+                                    <div class="select-wrapper"><input class="select-dropdown dropdown-trigger" type="text" readonly="true" data-target="select-options-50a0d7e7-9196-9c9b-02a0-77cfe0d27af2"><ul id="select-options-50a0d7e7-9196-9c9b-02a0-77cfe0d27af2" class="dropdown-content select-dropdown" tabindex="0"><li id="select-options-50a0d7e7-9196-9c9b-02a0-77cfe0d27af20" tabindex="0" class="selected"><span>Color Antibody by Chain</span></li><li id="select-options-50a0d7e7-9196-9c9b-02a0-77cfe0d27af21" tabindex="0"><span>Element/CPK</span></li><li id="select-options-50a0d7e7-9196-9c9b-02a0-77cfe0d27af22" tabindex="0"><span>Residue</span></li><li id="select-options-50a0d7e7-9196-9c9b-02a0-77cfe0d27af23" tabindex="0"><span>Molecule Type</span></li><li id="select-options-50a0d7e7-9196-9c9b-02a0-77cfe0d27af24" tabindex="0"><span>B-factor</span></li><li id="select-options-50a0d7e7-9196-9c9b-02a0-77cfe0d27af25" tabindex="0"><span>Secondary Structure</span></li><li id="select-options-50a0d7e7-9196-9c9b-02a0-77cfe0d27af26" tabindex="0"><span>Hydrophobicity</span></li><li id="select-options-50a0d7e7-9196-9c9b-02a0-77cfe0d27af27" tabindex="0"><span>Geometry Quality</span></li></ul><svg class="caret" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg><select class="select" name="select-colorScheme_ab" id="select-colorScheme_ab" tabindex="-1">
+                                        Colored By
+                                        <option value="chainid" selected="">Color Antibody by Chain</option>
+                                        <option value="element">Element/CPK</option>
+                                        <option value="resname">Residue</option>
+                                        <option value="moleculetype">Molecule Type</option>
+                                        <option value="bfactor">B-factor</option>
+                                        <option value="sstruc">Secondary Structure</option>
+                                        <option value="hydrophobicity">Hydrophobicity</option>
+                                        <option value="geoquality">Geometry Quality</option>
+                                    </select></div>
+                                </div>
+
+                                <div class="col s2 m2 l2">
+                                    <div class="select-wrapper"><input class="select-dropdown dropdown-trigger" type="text" readonly="true" data-target="select-options-b80e84a3-b849-b66a-63cc-0597bc034044"><ul id="select-options-b80e84a3-b849-b66a-63cc-0597bc034044" class="dropdown-content select-dropdown" tabindex="0"><li id="select-options-b80e84a3-b849-b66a-63cc-0597bc0340440" tabindex="0" class="selected"><span>Show Antigen as cartoon</span></li><li id="select-options-b80e84a3-b849-b66a-63cc-0597bc0340441" tabindex="0"><span>ball+stick</span></li><li id="select-options-b80e84a3-b849-b66a-63cc-0597bc0340442" tabindex="0"><span>licorice</span></li><li id="select-options-b80e84a3-b849-b66a-63cc-0597bc0340443" tabindex="0"><span>spacefill</span></li><li id="select-options-b80e84a3-b849-b66a-63cc-0597bc0340444" tabindex="0"><span>surface</span></li></ul><svg class="caret" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg><select class="select" name="select-style_ag" id="select-style_ag" tabindex="-1">
+                                        <option value="cartoon" selected="">Show Antigen as cartoon</option>
+                                        <option value="ball+stick">ball+stick</option>
+                                        <option value="licorice">licorice</option>
+                                        <option value="spacefill">spacefill</option>
+                                        <option value="surface">surface</option>
+                                    </select></div>
+                                </div>
+
+                                <div class="col s2 m2 l2">
+                                    <div class="select-wrapper"><input class="select-dropdown dropdown-trigger" type="text" readonly="true" data-target="select-options-150cd8c8-9e8c-a992-a183-37d61c62575b"><ul id="select-options-150cd8c8-9e8c-a992-a183-37d61c62575b" class="dropdown-content select-dropdown" tabindex="0"><li id="select-options-150cd8c8-9e8c-a992-a183-37d61c62575b0" tabindex="0" class="selected"><span>Color Antigen by Chain</span></li><li id="select-options-150cd8c8-9e8c-a992-a183-37d61c62575b1" tabindex="0"><span>Element/CPK</span></li><li id="select-options-150cd8c8-9e8c-a992-a183-37d61c62575b2" tabindex="0"><span>Residue</span></li><li id="select-options-150cd8c8-9e8c-a992-a183-37d61c62575b3" tabindex="0"><span>Molecule Type</span></li><li id="select-options-150cd8c8-9e8c-a992-a183-37d61c62575b4" tabindex="0"><span>B-factor</span></li><li id="select-options-150cd8c8-9e8c-a992-a183-37d61c62575b5" tabindex="0"><span>Secondary Structure</span></li><li id="select-options-150cd8c8-9e8c-a992-a183-37d61c62575b6" tabindex="0"><span>Hydrophobicity</span></li><li id="select-options-150cd8c8-9e8c-a992-a183-37d61c62575b7" tabindex="0"><span>Geometry Quality</span></li></ul><svg class="caret" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"></path><path d="M0 0h24v24H0z" fill="none"></path></svg><select class="select" name="select-colorScheme_ag" id="select-colorScheme_ag" tabindex="-1">
+                                        Colored By
+                                        <option value="chainid" selected="">Color Antigen by Chain</option>
+                                        <option value="element">Element/CPK</option>
+                                        <option value="resname">Residue</option>
+                                        <option value="moleculetype">Molecule Type</option>
+                                        <option value="bfactor">B-factor</option>
+                                        <option value="sstruc">Secondary Structure</option>
+                                        <option value="hydrophobicity">Hydrophobicity</option>
+                                        <option value="geoquality">Geometry Quality</option>
+                                    </select></div>
+                                </div>
+                            </div>
+                            <div class="col s12 m12 l12">
+                                <h6><center><b>Antibody-antigen Interactions</b></center></h6>
+                            </div>
+                            <div class="col s12 m12 l12">
+                                <div class="col s6 center-align">
+                                    <p> Atom representation</p>
+                                    <div class="switch atomRep">
+                                        <label>
+                                            Hide
+                                            <input id="atomRep" type="checkbox" checked="">
+                                            <span class="lever"></span>
+                                            Show
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col s6 center-align">
+                                    <p> Interactions</p>
+                                    <div class="switch atomRep">
+                                        <label>
+                                            Hide
+                                            <input id="intRep" type="checkbox" checked="">
+                                            <span class="lever"></span>
+                                            Show
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col s12 m12 l12">
+                                <div class="col s3 center-align">
+                                    <p>PI interaction</p>
+                                    <div class="switch PIints">
+                                        <label>
+                                            Hide
+                                            <input id="PIints" type="checkbox" checked="">
+                                            <span class="lever"></span>
+                                            Show
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col s3 center-align">
+                                    <p>VDW</p>
+                                    <div class="switch vdw">
+                                        <label>
+                                            Hide
+                                            <input id="vdw" type="checkbox" checked="">
+                                            <span class="lever"></span>
+                                            Show
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col s3 center-align">
+                                    <p>Hydrogen Bond</p>
+                                    <div class="switch hbond">
+                                        <label>
+                                            Hide
+                                            <input id="hbond" type="checkbox" checked="">
+                                            <span class="lever"></span>
+                                            Show
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col s3 center-align">
+                                    <p>Ionic</p>
+                                    <div class="switch ionic">
+                                        <label>
+                                            Hide
+                                            <input id="ionic" type="checkbox" checked="">
+                                            <span class="lever"></span>
+                                            Show
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col s12 m12 l12">
+                                <div class="col s3 center-align">
+                                    <p>Aromatic</p>
+                                    <div class="switch aromatic">
+                                        <label>
+                                            Hide
+                                            <input id="aromatic" type="checkbox" checked="">
+                                            <span class="lever"></span>
+                                            Show
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col s3 center-align">
+                                    <p>Hydrophobic</p>
+                                    <div class="switch hydrophobic">
+                                        <label>
+                                            Hide
+                                            <input id="hydrophobic" type="checkbox" checked="">
+                                            <span class="lever"></span>
+                                            Show
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col s3 center-align">
+                                    <p>Carbonyl</p>
+                                    <div class="switch carbonyl">
+                                        <label>
+                                            Hide
+                                            <input id="carbonyl" type="checkbox" checked="">
+                                            <span class="lever"></span>
+                                            Show
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col s3 center-align">
+                                    <p>Polar</p>
+                                    <div class="switch polar">
+                                        <label>
+                                            Hide
+                                            <input id="polar" type="checkbox" checked="">
+                                            <span class="lever"></span>
+                                            Show
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="fastViewer" style="height:600px;width:auto;text-align:center;overflow:hidden;"><div style="position: relative;"><canvas width="1257" height="600" tabindex="-1" style="width: 1257.5px; height: 600px; background-color: rgb(0, 0, 0); touch-action: none; outline: none;"></canvas></div><div style="display: none; position: fixed; z-index: 1000000; pointer-events: none; background-color: rgba(0, 0, 0, 0.6); color: lightgrey; padding: 8px; font-family: sans-serif;"></div></div>
+                    <button type="button" id="setspin" class="btn waves-effect waves-light btn-white col s12 m6 l2">
+                        Spin <i class="fa fa-question-circle tooltipped" data-position="top" data-tooltip="Activate/disable Spin</p>"> </i>
+                    </button>
+                    <button type="button" id="fullscreen" class="btn waves-effect waves-light btn-white col s12 m6 l3">
+                        Fullscreen <i class="fa fa-question-circle " data-position="top" data-tooltip="Activate/disable Fullscreen mode"> </i>
+                    </button>
+                    <button type="button" id="screenshot" class="btn waves-effect waves-light btn-white col s12 m6 l3">
+                        Screenshot <i class="fa fa-question-circle tooltipped" data-position="top" data-tooltip="Save screen as an image file"></i>
+                    </button>
+                    <button type="button" id="showCDRs" class="btn waves-effect waves-light btn-white col s12 m6 l2" onclick="M.toast({html: 'Light(Cyan) and Heavy(Magenta)', classes:'black'})">
+                        Show CDR
+                        <i class="fa fa-question-circle tooltipped" data-position="top" data-tooltip="Highlight CDR-L and CDR-H residues in cyan and magenta colours."></i>
+                    </button>
+                    <button type="button" id="resetView" class="btn waves-effect waves-light btn-white col s12 m6 l2">
+                        Reset View
+                        <i class="fa fa-question-circle tooltipped" data-position="top" data-tooltip="Reset to the default structure view"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="row" style="margin-bottom:0px;">
+            <div class="col s12 m12 l12">
+                <div class="card">
+                    <div class="card-content">
+                        <div class="card-title"><strong>Download</strong></div>
+                        <div class="row">
+                            <div class="col s12">
+                                <br>
+                                <div class="col s6" style="text-align:center;"><a href="/csm_ab/get_file/1772815987.3171363/result_file.csv" )="" }}="">
+                                        <h6><b> <i class="fas fa-table fa-lg"></i> Result(csv) file </b></h6>
+                                    </a></div>
+                                <div class="col s6" style="text-align:center;"><a onclick="M.toast({html: 'Pymol V2.3.2 or later is required', classes:'red'})" href="/csm_ab/get_file/1772815987.3171363/interactions.zip" )="" }}="">
+                                        <h6><b> <i class="fas fa-file-archive fa-lg"></i> Interaction Files(pse) </b>
+                                        </h6>
+                                    </a></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    </main>
+
+    <footer class="page-footer light-blue darken-3">
+        <div class="container">
+            <div class="row">
+                <div class="col l6 s12">
+                    <h5 class="white-text"><a class="white-text" href="https://biosig.lab.uq.edu.au">Biosig Lab <i class="material-icons">launch</i></a></h5>
+                    <p class="grey-text text-lighten-4">Our group is interested in developing and experimentally
+                        validating novel computational methods to exploit this data, enhancing the impact of genome
+                        sequencing, structural genomics, and functional genomics on biology and medicine.</p>
+                </div>
+                <div class="col l6 s12">
+                    <div class="valign-wrapper">
+                        <div class="col l5 s5">
+                            <a href="https://www.cpqrr.fiocruz.br/pg/" target="_blank">
+                                <img class="responsive-img" src="/csm_ab/static/img/baker_logo.svg" alt="Baker Logo">
+                            </a>
+                        </div>
+                        <div class="col l6 s6">
+                            <a href="https://www.bio21.unimelb.edu.au/" target="_blank">
+                                <img class="responsive-img" src="/csm_ab/static/img/unimelb_n_bio21.png" alt="Bio21 Logo">
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="footer-copyright">
+            <div class="container right-align">
+                <a href="https://opendefinition.org/okd" target="_blank">
+                    <img alt="This material is Open Knowledge" style="border:0" src="https://assets.okfn.org/images/ok_buttons/ok_80x15_blue.png">
+                </a>
+                <br>
+                <small>Best viewed using <a target="_blank" href="https://www.google.com/chrome">Chrome</a> on 1280x960
+                    resolution and above</small>
+            </div>
+        </div>
+    </footer>
+<script type="text/javascript" src="/csm_ab/static/js/jquery-3.3.1.min.js"></script>
+<script type="text/javascript" src="/csm_ab/static/materialize/js/materialize.min.js"></script>
+
+
+    <script type="text/javascript" src="/csm_ab/static/ngl/js/ngl.js"></script>
+    <script type="text/javascript" src="/csm_ab/static/ngl/js/precise_viewer.js"></script>
+    <script type="text/javascript" src="/csm_ab/static/d3js_v3/d3.min.js"></script>
+    <script type="text/javascript" src="/csm_ab/static/chartjs/Chart.min.js"></script>
+    <script type="text/javascript" src="/csm_ab/static/chartjs/chartjs-plugin-colorschemes.min.js"></script>
+    <script>
+        $.getJSON("/csm_ab/get_file/1772815987.3171363/non_zero_int.json", function(json) {
+            var label_list = json['columns']
+            var data_list = json['data'][0]
+            var ctx = document.getElementById('myChart');
+            var myChart = new Chart(ctx,{
+                type:'horizontalBar', // horizontalBar or bar
+                data:{
+                    labels: label_list,
+                    datasets:[{
+                        data: data_list,
+                        //indexAxis: 'y', // For v.3.xx
+                        backgroundColor: Chart['colorschemes'].tableau.Classic20, // For Bar/horizontalBar chart,
+                    }]},
+                options: {
+                    //responsive:false,
+                    title:{
+                        display: true,
+                        position: 'top',
+                        fontSize: '20',
+                        text: 'Number of interactions found in Antibody-antigen binding interface',
+                    },
+                    legend:{
+                        display:false
+                    },
+                    plugins: {
+                        colorschemes: {
+                            //scheme: 'brewer.Paired12'
+                            scheme: 'tableau.Classic20' // for Pie/Doughnut chart
+                        }
+                    }
+                }
+            });
+        });
+    </script>
+    <script>
+        var pdb_uri = "/csm_ab/get_file/1772815987.3171363/wt_cleaned.pdb";
+        var wild_int = ({'vdw': [['95:A.CD', '57:B.N']], 'hbond': [['95:A.NE2', '57:B.ND1'], ['57:B.O', '52:B.N'], ['51:B.CA', '57:B.O']], 'clash': [['95:A.CA', '57:B.CD2'], ['95:A.CB', '57:B.CD2'], ['95:A.NE2', '57:B.CE1'], ['95:A.NE2', '57:B.N'], ['95:A.NE2', '57:B.ND1'], ['95:A.CD', '57:B.CE1'], ['95:A.CD', '57:B.ND1'], ['57:B.NE2', '95:A.NE2'], ['57:B.NE2', '95:A.CD'], ['57:B.NE2', '95:A.CA'], ['57:B.NE2', '95:A.CG'], ['57:B.NE2', '95:A.CB'], ['95:A.NE2', '57:B.CD2'], ['95:A.CG', '57:B.CE1'], ['95:A.CB', '57:B.CE1'], ['95:A.CG', '57:B.ND1'], ['57:B.O', '52:B.N'], ['95:A.OE1', '57:B.CA'], ['95:A.CG', '57:B.CG'], ['95:A.CB', '57:B.CG'], ['95:A.OE1', '57:B.CD2'], ['95:A.CG', '57:B.CB'], ['57:B.NE2', '95:A.OE1'], ['95:A.NE2', '57:B.CG'], ['95:A.OE1', '57:B.CE1'], ['95:A.OE1', '57:B.ND1'], ['95:A.NE2', '57:B.CB'], ['95:A.CD', '57:B.CB'], ['95:A.NE2', '57:B.CA'], ['95:A.CD', '57:B.CA']], 'ionic': [], 'aromatic': [], 'hydrophobic': [['52:B.CB', '57:B.CB'], ['95:A.CG', '57:B.CB'], ['95:A.CB', '57:B.CB']], 'carbonyl': [], 'polar': [['95:A.NE2', '57:B.ND1'], ['57:B.NE2', '95:A.NE2'], ['57:B.O', '52:B.N'], ['66:B.N', '64:B.O'], ['57:B.NE2', '95:A.CA'], ['57:B.NE2', '95:A.CG'], ['57:B.NE2', '95:A.CB'], ['95:A.CG', '57:B.ND1']]});
+        var wild_PIint = ({'carbonpi': [], 'cationpi': [], 'donorpi': [], 'halogenpi': [], 'metsulphurpi': [], 'pipi': [], 'amideamide': [], 'amidering': []});
+        var wild_PIintResidues = ([]);
+        var ab_chains = ('B').split(',');
+        var ag_chains = ('A').split(',');
+        var light_CDR = ('');
+        var heavy_CDR = ('24:B 25:B 26:B 27:B 28:B 29:B 30:B 31:B 32:B 33:B 34:B 50:B 51:B 52:B 53:B 54:B 55:B 56:B 57:B 93:B 94:B 95:B 96:B 97:B 98:B 99:B 100:B 101:B');
+        var all_chains = ('BA');
+        var int_residues = ['B|66', 'B|57', 'B|104', 'B|51', 'B|105', 'B|60', 'B|111', 'B|52', 'B|43', 'B|102', 'B|61', 'B|50', 'B|58', 'B|106', 'B|63', 'B|110', 'B|64', 'B|103', 'B|62', 'B|107', 'B|108', 'B|47', 'B|46', 'B|44', 'B|65', 'B|59', 'B|99', 'B|109', 'B|37', 'B|112', 'B|33', 'B|56', 'A|340', 'A|337', 'A|93', 'A|335', 'A|89', 'A|86', 'A|324', 'A|344', 'A|85', 'A|294', 'A|347', 'A|91', 'A|331', 'A|81', 'A|339', 'A|328', 'A|336', 'A|295', 'A|346', 'A|92', 'A|96', 'A|330', 'A|304', 'A|298', 'A|341', 'A|343', 'A|88', 'A|84', 'A|75', 'A|90', 'A|342', 'A|327', 'A|87', 'A|95', 'A|82', 'A|338', 'A|345', 'A|326', 'A|332', 'A|334'];
+        var num_int_residues = int_residues.length;
+        var run_id = "1772815987.3171363";
+        $(".num_int_residues").html(num_int_residues);
+        structure3DApp.init("fastViewer", "/csm_ab/get_file/1772815987.3171363/wt_cleaned.pdb", all_chains, int_residues, wild_int, wild_PIint, wild_PIintResidues);
+    </script><div style="display: none; position: fixed; z-index: 10; pointer-events: none; background-color: rgba(0, 0, 0, 0.6); color: lightgrey; padding: 8px; font-family: sans-serif;"></div>
+
+<script>
+    $(document).ready(function(){
+        $('#nav-mobile').sidenav();
+        $('select').formSelect();
+        $('.tooltipped').tooltip({
+            html:true,
+        });
+            
+    });
+</script>
+
+<div class="sidenav-overlay"></div><div class="drag-target"></div><div class="material-tooltip"><div class="tooltip-content">true</div></div><div class="material-tooltip"><div class="tooltip-content">true</div></div><div class="material-tooltip"><div class="tooltip-content">true</div></div><div class="material-tooltip"><div class="tooltip-content">true</div></div></body></html>
