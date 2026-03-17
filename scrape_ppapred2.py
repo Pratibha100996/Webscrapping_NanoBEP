@@ -193,7 +193,7 @@ if context_elem is not None:
             return
         except Exception:
             continue
->>>>>>> 0debb0026c83ce33af3b4eae3e8435e6438b0b24
+
 
     try:
         # Try submitting the closest form
