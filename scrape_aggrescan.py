@@ -109,29 +109,7 @@ def wait_for_results(driver: webdriver.Chrome, timeout: int) -> None:
     WebDriverWait(driver, timeout).until(has_results)
 
 
-def parse_na4vss(text: str, sequence_name: str | None = None) -> str:
-    """Extract the Na4vSS score, preferring the rounded value in "Sorted by Na4vSS".
-
-    AGGRESCAN pages include the full metric block and then a summary such as:
-    "Sorted by Na4vSS" followed by "1g6v_K    -4.40". The user-requested
-    CSV value is the number from that sorted summary line when it is available.
-    """
-    sorted_match = re.search(
-        r"Sorted\s+by\s+Na4vSS(?P<table>.*?)(?:\n\s*#|\Z)",
-        text,
-        re.IGNORECASE | re.DOTALL,
-    )
-    if sorted_match:
-        table = sorted_match.group("table")
-        escaped_name = re.escape(sequence_name.strip()) if sequence_name else r"\S+"
-        summary_patterns = [
-            rf"^\s*{escaped_name}\s+([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)\s*$",
-            r"^\s*\S+\s+([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)\s*$",
-        ]
-        for pattern in summary_patterns:
-            for match in re.finditer(pattern, table, re.IGNORECASE | re.MULTILINE):
-                return match.group(1).strip()
-
+def parse_na4vss(text: str) -> str:
     patterns = [
         r"Normalized\s+a4v\s+Sequence\s+Sum\s+for\s+100\s+residues\s*\(\s*Na4vSS\s*\)\s*:\s*([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)",
         r"Na4vSS\s*\)?\s*:\s*([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)",
@@ -153,8 +131,7 @@ def run_prediction(driver: webdriver.Chrome, header: str, sequence: str, timeout
     click_submit(driver, sequence_box)
     wait_for_results(driver, timeout)
 
-    sequence_name = header.lstrip(">").split()[0]
-    value = parse_na4vss(driver.find_element(By.TAG_NAME, "body").text, sequence_name)
+    value = parse_na4vss(driver.find_element(By.TAG_NAME, "body").text)
     if verbose:
         print(f"[INFO] {header}: {OUTPUT_COLUMN}={value}")
     return value
