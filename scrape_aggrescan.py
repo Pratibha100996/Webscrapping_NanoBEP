@@ -110,36 +110,14 @@ def wait_for_results(driver: webdriver.Chrome, timeout: int) -> None:
 
 
 def parse_na4vss(text: str) -> str:
-    """
-    Extract the AGGRESCAN normalized a4v Sequence Sum (Na4vSS).
-    Expected example:
-    Normalized a4v Sequence Sum for 100 residues (Na4vSS): -4.4
-    """
-
-    # Normalize whitespace
-    clean_text = re.sub(r"[ \t]+", " ", text)
-    clean_text = re.sub(r"\n+", "\n", clean_text)
-
-    # Exact AGGRESCAN result line
-    pattern = re.compile(
-        r"Normalized\s+a4v\s+Sequence\s+Sum\s+for\s+100\s+residues"
-        r"\s*\(\s*Na4vSS\s*\)\s*:\s*"
-        r"([-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?)",
-        re.IGNORECASE,
-    )
-
-    match = pattern.search(clean_text)
-
-    if match:
-        value = match.group(1).strip()
-        return value
-
-    # Debugging: show possible Na4vSS occurrences
-    print("\n[DEBUG] Na4vSS was not matched correctly.")
-    for line in clean_text.splitlines():
-        if "Na4v" in line or "a4v" in line:
-            print("[DEBUG]", repr(line))
-
+    patterns = [
+        r"Normalized\s+a4v\s+Sequence\s+Sum\s+for\s+100\s+residues\s*\(\s*Na4vSS\s*\)\s*:\s*([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)",
+        r"Na4vSS\s*\)?\s*:\s*([-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
     return "NOT_FOUND"
 
 
@@ -153,14 +131,7 @@ def run_prediction(driver: webdriver.Chrome, header: str, sequence: str, timeout
     click_submit(driver, sequence_box)
     wait_for_results(driver, timeout)
 
-    body_text = driver.find_element(By.TAG_NAME, "body").text
-
-    if verbose:
-        print("\n========== AGGRESCAN RESULT ==========")
-        print(body_text)
-        print("=======================================")
-
-    value = parse_na4vss(body_text)
+    value = parse_na4vss(driver.find_element(By.TAG_NAME, "body").text)
     if verbose:
         print(f"[INFO] {header}: {OUTPUT_COLUMN}={value}")
     return value
