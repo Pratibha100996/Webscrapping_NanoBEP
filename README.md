@@ -177,3 +177,35 @@ python scrape_aggrescan.py \
   --headless \
   --verbose
 ```
+
+---
+
+### 7) ProteinIQ Ramachandran plot scraper
+
+Script: `ramaplot.py`
+
+Targets:
+`https://proteiniq.io/app/ramachandran-plot`
+
+Given a CSV and a folder of `.pdb` structure files, it:
+- reads the first CSV column as the PDB ID column,
+- processes rows in the CSV order,
+- matches each CSV PDB ID to a `.pdb` file by comparing only the first four characters,
+- uploads the matching structure under **Run → Protein Structure → Upload files**,
+- clicks **Generate**,
+- reads **Structure Quality** values for:
+  - `Favored`
+  - `Allowed`
+  - `Outlier`
+- writes those values into the CSV, preserving the original row order.
+
+By default, the input CSV is overwritten. Use `--output` to write a separate CSV instead.
+
+```bash
+python ramaplot.py \
+  --csv /path/to/input.csv \
+  --pdb-folder /path/to/pdb_structures \
+  --output /path/to/output.csv \
+  --headless \
+  --verbose
+```
