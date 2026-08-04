@@ -149,3 +149,31 @@ Run:
 ```bash
 python ProAffinity-GNN.py
 ```
+
+---
+
+### 6) AGGRESCAN scraper
+
+Script: `scrape_aggrescan.py`
+
+Targets:
+`http://andromeda.uab.cat/bioinf/aggrescan/`
+
+Given a CSV and one FASTA/text file, it:
+- reads the first CSV column as the PDB ID column,
+- uses only the first four characters of each CSV PDB ID,
+- matches those four characters against the first four characters after each FASTA header's `>`,
+- submits matching FASTA records to the AGGRESCAN sequence textarea named `sequence`,
+- reads `Normalized a4v Sequence Sum for 100 residues (Na4vSS):` from the result page,
+- writes the values into a new `Na4vSS` column, preserving the CSV row order.
+
+By default, the input CSV is overwritten. Use `--output` to write a separate CSV instead.
+
+```bash
+python scrape_aggrescan.py \
+  --csv /path/to/input.csv \
+  --fasta /path/to/sequences.txt \
+  --output /path/to/output.csv \
+  --headless \
+  --verbose
+```
